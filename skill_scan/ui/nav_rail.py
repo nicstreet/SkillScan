@@ -99,7 +99,7 @@ class NavRail(QWidget):
 
         for i, (icon, label) in enumerate(self._TOP):
             item = NavItem(icon, label, self)
-            item.clicked.connect(lambda _, idx=i: self._select(idx))
+            item.clicked.connect(lambda idx=i: self._select(idx))
             vbox.addWidget(item)
             self._items.append(item)
 
