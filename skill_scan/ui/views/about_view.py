@@ -31,7 +31,20 @@ class AboutView(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        root = QVBoxLayout(self)
+        # Three equal-weight panes — content sits in the centre pane
+        outer = QHBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        outer.addStretch(1)
+
+        centre = QWidget()
+        centre.setStyleSheet(f"background: {ANCHOR};")
+        centre.setMinimumWidth(380)
+        centre.setMaximumWidth(560)
+        outer.addWidget(centre, 1)
+        outer.addStretch(1)
+
+        root = QVBoxLayout(centre)
         root.setContentsMargins(40, 40, 40, 40)
         root.setSpacing(0)
 
