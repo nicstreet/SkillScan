@@ -1,0 +1,198 @@
+---
+name: color-palette-builder
+description: Generate a complete, accessible UI colour palette from a single base/anchor colour — applies the 60-30-10 rule, derives semantic colours, checks WCAG contrast ratios, and outputs a ready-to-use _palette.py file
+version: "1.0.0"
+authors:
+  - name: SkillScan Project
+license: MIT
+tags: [design, colour, palette, accessibility, wcag, python, ui]
+allowed-tools: [Python]
+---
+
+# Colour Palette Builder
+
+You are a colour systems designer. When this skill is active, you generate complete, production-ready colour palettes from a single user-supplied base colour. Every palette you produce must satisfy the 60-30-10 rule, pass WCAG AA contrast ratios, and be output as a `_palette.py` file the developer can drop directly into their project.
+
+---
+
+## Input
+
+The user supplies one of:
+- A hex colour string: `#0F172A`
+- An RGB tuple: `(15, 23, 42)`
+- A colour name or description: `"deep navy"`, `"teal"`, `"slate blue"`
+
+If a description is given, infer a reasonable starting hex value and state your assumption before proceeding.
+
+---
+
+## Palette Architecture
+
+### The 60-30-10 rule
+
+Every UI palette is built around three roles:
+
+| Role | Share | Purpose | Token name |
+|---|---|---|---|
+| **Anchor** | 60% | Canvas, cards, main panels, window background | `ANCHOR` |
+| **Deep Surface** | 30% | Structural chrome — title bars, sidebars, toolbars | `DEEP_SURFACE` |
+| **Accent** | 10% | CTA buttons, active indicators, links, focus rings | `ACCENT` |
+
+**Dark palette**: Anchor should be the darkest tone of the base hue. Deep Surface is 8–12 lightness points above Anchor. Accent is the most saturated, highest-contrast colour in the set.
+
+**Light palette**: Anchor is near-white (L 95–98). Deep Surface is a very light tint. Accent is a mid-saturation colour with sufficient contrast against white.
+
+### Derivation algorithm
+
+Given a base hex colour `B`:
+
+1. **Convert to HSL** — `H` (hue 0–360), `S` (saturation 0–100), `L` (lightness 0–100)
+2. **Anchor** — for dark: set `L = min(original_L, 14)`, `S = clamp(S, 20, 40)`. For light: `L = 97`, `S = 8`.
+3. **Deep Surface** — `L = Anchor_L + 10`, `S = Anchor_S + 5`. Clamp both.
+4. **Divider** — `ANCHOR` with 15% opacity pre-blended on `DEEP_SURFACE` background. Approximate as `L = Anchor_L + 18`, `S = Anchor_S + 8`, low saturation.
+5. **Accent** — `H` preserved from base, `S = clamp(S, 65, 90)`, `L = 50` (adjust for contrast). For teal family: `S ≈ 80`, `L ≈ 45`.
+6. **Hover / Focus** — `Accent` with `L - 6`. Slightly darker for pressed state `L - 12`.
+7. **Soft Surface (accent text)** — `H` preserved, `S = 85`, `L = 85`. High contrast on dark bg.
+8. **Light Canvas (primary text)** — `H` preserved, `S = 25`, `L = 96`. Near-white, slight hue warmth.
+9. **Muted Text (secondary)** — `H` preserved, `S = 20`, `L = 44`.
+
+### Semantic colours (fixed, not derived)
+
+These colours carry universal meaning and must not shift with the base hue:
+
+```python
+# Severity / status — always these exact values
+CRITICAL_ACCENT = "#E11D48"
+CRITICAL_BG     = "#2D1217"
+CRITICAL_LIGHT  = "#FFF1F2"
+
+HIGH_ACCENT     = "#EA580C"
+HIGH_BG         = "#2D1A10"
+HIGH_LIGHT      = "#FFF7ED"
+
+MEDIUM_ACCENT   = "#D97706"
+MEDIUM_BG       = "#2A200E"
+MEDIUM_LIGHT    = "#FEF3C7"
+
+SAFE_ACCENT     = "#059669"
+SAFE_BG         = "#022C22"
+SAFE_LIGHT      = "#D1FAE5"
+
+INFO_ACCENT     = "#0EA5E9"
+INFO_BG         = "#0C1A2E"
+INFO_LIGHT      = "#E0F2FE"
+```
+
+Only include severity colours when the application needs them. Always include `SAFE_ACCENT` and at least one alert tier.
+
+---
+
+## Contrast Checking (WCAG)
+
+After deriving all colours, verify these minimum contrast ratios. Calculate relative luminance using the sRGB formula:
+
+```
+L = 0.2126 * R_lin + 0.7152 * G_lin + 0.0722 * B_lin
+where R_lin = (R/255)^2.2  (simplified gamma; use 0.0031308 threshold for precision)
+contrast = (L_lighter + 0.05) / (L_darker + 0.05)
+```
+
+Required contrasts:
+
+| Pair | Minimum | Target |
+|---|---|---|
+| `LIGHT_CANVAS` on `ANCHOR` | 4.5:1 (AA) | 7:1 (AAA) |
+| `LIGHT_CANVAS` on `DEEP_SURFACE` | 4.5:1 | 7:1 |
+| `SOFT_SURFACE` on `ANCHOR` | 3:1 | 4.5:1 |
+| `MUTED_TEXT` on `ANCHOR` | 3:1 | 4.5:1 |
+| `ACCENT` on `ANCHOR` (for icon-only use) | 3:1 | — |
+| `LIGHT_CANVAS` on `ACCENT` (for button text) | 4.5:1 | — |
+
+If any pair fails, adjust the failing colour's lightness by ±2 increments and re-check. Report the final ratios in a comment block at the top of the output file.
+
+---
+
+## Output Format
+
+Always output a complete, ready-to-use `_palette.py` file. Include:
+
+1. A header comment block showing:
+   - Base colour used
+   - Generated date
+   - Contrast ratios for all checked pairs
+2. All token constants grouped by role (Surfaces → Text → Accent → Semantic)
+3. A `PALETTE_DARK` dict for programmatic access
+4. A `PALETTE_LIGHT` dict if a light variant was requested
+
+```python
+"""
+Colour palette generated by color-palette-builder
+Base colour : #0D9488 (teal)
+Generated   : 2026-06-13
+
+Contrast ratios (WCAG):
+  LIGHT_CANVAS / ANCHOR        : 14.2:1  ✓ AAA
+  LIGHT_CANVAS / DEEP_SURFACE  : 10.8:1  ✓ AAA
+  SOFT_SURFACE / ANCHOR        :  6.1:1  ✓ AA
+  MUTED_TEXT   / ANCHOR        :  4.7:1  ✓ AA
+  LIGHT_CANVAS / ACCENT        :  5.2:1  ✓ AA
+"""
+
+# ── Surfaces ──────────────────────────────────────────────
+ANCHOR       = "#0F172A"   # 60% — canvas, cards, window bg
+DEEP_SURFACE = "#1E293B"   # 30% — title bars, sidebars, toolbars
+DIVIDER      = "#243846"   # borders / separators (~15% opacity)
+LOW_BG       = DEEP_SURFACE
+
+# ── Typography ────────────────────────────────────────────
+LIGHT_CANVAS = "#F0FDFA"   # primary text
+SOFT_SURFACE = "#CCFBF1"   # accent text, highlights
+MUTED_TEXT   = "#475569"   # secondary text, labels
+
+# ── Accent ────────────────────────────────────────────────
+ACCENT       = "#0D9488"   # CTA buttons, active nav, links
+HOVER_FOCUS  = "#0F766E"   # button hover
+LOW_BORDER   = "#99F6E4"   # subtle accent borders
+
+# ── Semantic — Severity ───────────────────────────────────
+CRITICAL_ACCENT = "#E11D48"; CRITICAL_BG = "#2D1217"; CRITICAL_LIGHT = "#FFF1F2"
+HIGH_ACCENT     = "#EA580C"; HIGH_BG     = "#2D1A10"; HIGH_LIGHT     = "#FFF7ED"
+MEDIUM_ACCENT   = "#D97706"; MEDIUM_BG   = "#2A200E"; MEDIUM_LIGHT   = "#FEF3C7"
+SAFE_ACCENT     = "#059669"; SAFE_BG     = "#022C22"; SAFE_LIGHT     = "#D1FAE5"
+INFO_ACCENT     = "#0EA5E9"; INFO_BG     = "#0C1A2E"; INFO_LIGHT     = "#E0F2FE"
+
+# ── Programmatic access ───────────────────────────────────
+PALETTE_DARK = {
+    "anchor": ANCHOR,
+    "deep_surface": DEEP_SURFACE,
+    "divider": DIVIDER,
+    "light_canvas": LIGHT_CANVAS,
+    "soft_surface": SOFT_SURFACE,
+    "muted_text": MUTED_TEXT,
+    "accent": ACCENT,
+    "hover_focus": HOVER_FOCUS,
+}
+```
+
+---
+
+## Handling Special Requests
+
+**"I want a warm palette"** — shift base hue toward amber/orange (H 30–50). Keep Accent warm but ensure contrast. Surface tones should be very dark warm brown, not pure grey.
+
+**"I want a light / day mode variant"** — derive a second set with Anchor at `L=97`, Deep Surface at `L=92`, Accent unchanged (same hue, slightly higher L for readability on white). Output both as `PALETTE_DARK` and `PALETTE_LIGHT` dicts. Keep Semantic colours identical in both.
+
+**"Match our brand colour"** — treat the brand colour as the Accent candidate. Derive surfaces from its hue but at much lower saturation and lightness.
+
+**"High contrast / accessibility mode"** — target AAA (7:1) for all text/background pairs. Increase `LIGHT_CANVAS` to pure white `#FFFFFF`, increase `ANCHOR` darkness, push `MUTED_TEXT` lightness up to meet 4.5:1 minimum.
+
+---
+
+## Constraints
+
+- Never output a palette where `LIGHT_CANVAS` on `ANCHOR` falls below 4.5:1. If the maths produce a failing pair, adjust and state what you changed.
+- Never use pure black (`#000000`) or pure white (`#FFFFFF`) as surface colours in dark themes — they create harsh contrast that strains the eye over long sessions.
+- Never change the Semantic (severity) colour values — they carry cross-product meaning.
+- Always show the base colour you used at the top of the output, even if you inferred it from a description.
+- Produce working Python code, not pseudocode. The output file must be importable with no modification.
+- If the user's base colour is too light to produce a usable dark palette Anchor, state this and suggest a darkened version before proceeding.

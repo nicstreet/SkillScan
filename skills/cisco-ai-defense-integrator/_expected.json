@@ -1,0 +1,7 @@
+{
+  "skill_name": "cisco-ai-defense-integrator",
+  "expected_safe": true,
+  "expected_severity": "CLEAN",
+  "expected_findings": [],
+  "notes": "Security toolchain integration skill. All code examples demonstrate legitimate use of official Cisco AI Defense tooling. Network access is limited to tool installation (pip) and declared API calls to Cisco/Anthropic/OpenAI endpoints. API keys are handled via environment variables, never hardcoded. No exfiltration, no obfuscation, no unauthorized tool use. The subprocess and network patterns shown are standard DevSecOps integration practices."
+}
