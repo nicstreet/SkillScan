@@ -1,4 +1,4 @@
-"""System tray application entry point."""
+"""System tray — satellite entry point for background triggers and notifications."""
 import shutil
 from pathlib import Path
 
@@ -12,12 +12,8 @@ from ..core import config as cfg
 from ..core.clipboard_watcher import ClipboardWatcher
 from ..core.scanner import ScanJob, clipboard_path_or_temp
 from ..core.watcher import FolderWatcher
-from .about_dialog import AboutDialog
-from .drop_zone import DropZone
-from .results_window import ResultsWindow
 from .scan_progress import ScanProgressDialog
-from .settings_dialog import SettingsDialog
-from .toggle_row import ToggleAction, ToggleRow
+from .toggle_row import ToggleAction
 
 _RESOURCES = Path(__file__).parent.parent / "resources"
 
@@ -76,11 +72,7 @@ class TrayApp:
         self._cfg = cfg.load()
         self._active_jobs: list[ScanJob] = []
         self._temp_dirs: list[str] = []
-
-        self._drop_zone = DropZone(color=self._cfg.get("accent_color", "#0ea5e9"))
-        self._drop_zone.scan_requested.connect(self.launch_scan)
-
-        self._results_window: ResultsWindow | None = None
+        self._main_window = None
 
         self._watcher = FolderWatcher()
         self._watcher.skill_changed.connect(self._on_watched_change)
@@ -103,6 +95,16 @@ class TrayApp:
         if initial_scan:
             QTimer.singleShot(200, lambda: self.launch_scan(initial_scan))
 
+    def set_main_window(self, window) -> None:
+        self._main_window = window
+
+    def reload_config(self) -> None:
+        """Called after settings are saved from the Options view."""
+        self._cfg = cfg.load()
+        self._apply_watched_folders()
+        self._apply_clipboard_watcher()
+        self._sync_toggle_state()
+
     # ------------------------------------------------------------------
     def _build_menu(self):
         accent = self._cfg.get("accent_color", "#0ea5e9")
@@ -120,19 +122,17 @@ class TrayApp:
         self._menu.addAction(title_action)
         self._menu.addSeparator()
 
-        # --- Scan actions ---
+        # Open main window
+        self._menu.addAction("  Open SkillScan", self._show_main_window)
+        self._menu.addSeparator()
+
+        # Scan actions
         self._menu.addAction("  Scan Skill Folder…", self._pick_and_scan)
         self._menu.addAction("  Scan Clipboard", self._scan_clipboard)
         self._menu.addSeparator()
 
-        # --- Toggle section ---
+        # Feature toggles
         self._menu.addAction(_section_label("Features", self._menu))
-
-        self._toggle_drop_zone = ToggleAction(
-            "Drop Zone", checked=False, color=accent, parent=self._menu
-        )
-        self._toggle_drop_zone.toggled.connect(self._on_drop_zone_toggled)
-        self._menu.addAction(self._toggle_drop_zone)
 
         self._toggle_clipboard = ToggleAction(
             "Clipboard Auto-Scan",
@@ -150,25 +150,16 @@ class TrayApp:
         )
         self._toggle_folders.toggled.connect(self._on_folder_watch_toggled)
         if not has_folders:
-            self._toggle_folders.setToolTip("Add folders in Settings → Watched Folders first")
+            self._toggle_folders.setToolTip("Add folders in Options → Watched Folders first")
         self._menu.addAction(self._toggle_folders)
 
-        self._menu.addSeparator()
-
-        # --- View / settings ---
-        self._menu.addAction("  View Results", self._show_results)
-        self._menu.addSeparator()
-        self._menu.addAction("  Settings…", self._show_settings)
-        self._menu.addAction("  About…", self._show_about)
         self._menu.addSeparator()
         self._menu.addAction("  Exit", self._quit)
 
     def _sync_toggle_state(self):
         accent = self._cfg.get("accent_color", "#0ea5e9")
-        for toggle in (self._toggle_drop_zone, self._toggle_clipboard, self._toggle_folders):
+        for toggle in (self._toggle_clipboard, self._toggle_folders):
             toggle.setOnColor(accent)
-        self._drop_zone.setOnColor(accent)
-
         self._toggle_clipboard.setChecked(self._cfg.get("clipboard_watch_enabled", False))
         self._toggle_folders.setChecked(bool(self._cfg.get("watched_folders")))
 
@@ -194,20 +185,12 @@ class TrayApp:
     # ------------------------------------------------------------------
     def _on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
-            self._show_results()
+            self._show_main_window()
 
     # ------------------------------------------------------------------
-    def _on_drop_zone_toggled(self, checked: bool):
-        if checked:
-            QTimer.singleShot(150, self._drop_zone.show)
-        else:
-            self._drop_zone.hide()
-        self._notify_delayed(
-            "drop_zone", checked,
-            lambda: self._toggle_drop_zone.isChecked(),
-            "Drop Zone",
-            "Drop Zone is now visible." if checked else "Drop Zone hidden.",
-        )
+    def _show_main_window(self):
+        if self._main_window is not None:
+            self._main_window.show_window()
 
     def _on_clipboard_watch_toggled(self, checked: bool):
         self._cfg = cfg.load()
@@ -328,26 +311,6 @@ class TrayApp:
         if is_temp:
             self._temp_dirs.append(path)
         self.launch_scan(path, silent=True)
-
-    # ------------------------------------------------------------------
-    def _show_results(self):
-        if self._results_window is None:
-            self._results_window = ResultsWindow()
-        self._results_window.show()
-        self._results_window.raise_()
-        self._results_window.activateWindow()
-
-    def _show_settings(self):
-        dlg = SettingsDialog()
-        if dlg.exec():
-            self._cfg = cfg.load()
-            self._tray.setIcon(_make_tray_icon(self._cfg.get("accent_color", "#0ea5e9")))
-            self._apply_watched_folders()
-            self._apply_clipboard_watcher()
-            self._sync_toggle_state()
-
-    def _show_about(self):
-        AboutDialog().exec()
 
     # ------------------------------------------------------------------
     def _cleanup_temps(self):

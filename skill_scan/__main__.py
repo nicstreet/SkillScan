@@ -1,7 +1,7 @@
 """
 Entry point.
 
-  python -m skill_scan                   # launch tray app
+  python -m skill_scan                   # launch main window + satellite tray
   python -m skill_scan --scan <path>     # scan a path (from context menu / CLI)
 """
 import sys
@@ -20,7 +20,12 @@ def main():
     app.setQuitOnLastWindowClosed(False)
 
     from .ui.tray import TrayApp
-    tray = TrayApp(app, initial_scan=args.scan)  # noqa: F841  (keep reference)
+    from .ui.main_window import MainWindow
+
+    tray = TrayApp(app, initial_scan=args.scan)        # satellite tray
+    window = MainWindow(tray_app=tray)                 # primary window
+    tray.set_main_window(window)
+    window.show()
 
     sys.exit(app.exec())
 

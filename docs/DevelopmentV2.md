@@ -377,6 +377,8 @@ Return JSON: { "findings": [{ "severity": "...", "line": N, "title": "...", "des
 
 ## Future / Ideas
 
+- **Prompt / Context Engineering Builder** — standalone interface + AI assistant for building AI-ready project context: system prompts, conversation starters, knowledge capsules, and project briefs. Goal: give an LLM everything it needs to hit the ground running without the user having to re-explain background on every session. Potential integration point: SkillScan could generate a context capsule for any skill folder (metadata, scan history, trust status, BOM snapshot) that drops straight into an LLM context window.
+
 - **GitHub Actions integration** — `skillscan-action` that scans SKILL.md in a PR and posts findings as review comments
 - **VS Code companion extension** — trigger scans from the editor sidebar; inline severity annotations
 - **Team config sync** — shared `config.json` fetched from a URL for org-wide defaults (API keys, policy, analyzer flags)
