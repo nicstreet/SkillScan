@@ -4,6 +4,8 @@
 
 SkillScan wraps the [Cisco AI Skill Scanner](https://github.com/cisco-ai-defense/cisco-ai-skill-scanner) CLI with a Windows-native PyQt6 interface — system tray for reactive scanning, full-window environment coming in v2.
 
+![SkillScan — Folders view showing skill tile grid with severity ratings](docs/assets/screenshot.png)
+
 ---
 
 ## What It Does
