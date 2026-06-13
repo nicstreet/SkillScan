@@ -133,7 +133,7 @@ SkillScan/
     │   └── test_skills.py              # Retained (unchanged)
     ├── ui/
     │   ├── _palette.py                 # Colour tokens (unchanged)
-    │   ├── _widgets.py                 # RoundedCard, TitleBar, card_divider (unchanged)
+    │   ├── _widgets.py                 # RoundedCard, TitleBar, card_divider, SCROLLBAR_STYLE
     │   ├── main_window.py              # NEW — frameless QMainWindow, nav rail, QStackedWidget
     │   ├── nav_rail.py                 # NEW — NavRail QWidget, NavItem, active-state management
     │   ├── scan_progress.py            # Retained — frameless scan dialog (unchanged)
@@ -317,6 +317,24 @@ with db.session() as s:
 
 **Trust invalidation via file hash**
 `SkillDiscovery` computes SHA-256 on each file during folder refresh. If `file_hash` differs from the DB value, `trusted` is set `False` and `trust_signed_at` is cleared. The tile badge updates on next load. No user action required.
+
+**Scrollbar styling**
+Qt's `QScrollBar` stylesheet rules do **not** cascade from a parent widget's `setStyleSheet()` into child scrollbar widgets. The standard scrollbar style must be applied **directly** on the scrollbar widget itself:
+
+```python
+from .._widgets import SCROLLBAR_STYLE
+
+# CORRECT — apply directly to the scrollbar widget
+widget.verticalScrollBar().setStyleSheet(SCROLLBAR_STYLE)
+
+# WRONG — QScrollBar rules silently ignored when set on the parent
+widget.setStyleSheet(f"QTextBrowser{{...}}" + SCROLLBAR_STYLE)   # ❌
+scroll_area.setStyleSheet(f"background:{ANCHOR};" + SCROLLBAR_STYLE)  # ❌
+```
+
+`SCROLLBAR_STYLE` is the single source of truth — defined in `ui/_widgets.py`. All scrollable widgets in the app must use this constant. The style renders a 6px slim dark handle (`#334155`) on a transparent track with no arrow buttons — consistent with the dark palette throughout.
+
+Applies to: `QTextBrowser`, `QPlainTextEdit`, `QListWidget`, `QScrollArea` (call on `.verticalScrollBar()`), and any other widget with an internal scrollbar.
 
 ---
 

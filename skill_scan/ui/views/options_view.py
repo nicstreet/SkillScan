@@ -1,4 +1,6 @@
 """Options view — migrated from SettingsDialog, adapted as a persistent view."""
+import sys
+import winreg
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QFileDialog, QFormLayout, QGroupBox,
@@ -8,6 +10,32 @@ from PyQt6.QtWidgets import (
 
 from ...core import config as cfg
 from .._palette import ACCENT, ANCHOR, HOVER_FOCUS, LIGHT_CANVAS, MUTED_TEXT
+from .._widgets import SCROLLBAR_STYLE
+
+_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+_APP_NAME = "SkillScan"
+
+
+def _get_login_enabled() -> bool:
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _RUN_KEY) as k:
+            winreg.QueryValueEx(k, _APP_NAME)
+            return True
+    except OSError:
+        return False
+
+
+def _set_login_enabled(enabled: bool) -> None:
+    with winreg.OpenKey(
+        winreg.HKEY_CURRENT_USER, _RUN_KEY, 0, winreg.KEY_SET_VALUE
+    ) as k:
+        if enabled:
+            winreg.SetValueEx(k, _APP_NAME, 0, winreg.REG_SZ, sys.executable)
+        else:
+            try:
+                winreg.DeleteValue(k, _APP_NAME)
+            except OSError:
+                pass
 
 
 def _primary_btn(text: str) -> QPushButton:
@@ -70,6 +98,7 @@ class OptionsView(QWidget):
             }}
             QTabBar::tab:hover {{ color: {LIGHT_CANVAS}; }}
         """)
+        tabs.addTab(self._make_general_tab(), "General")
         tabs.addTab(self._make_llm_tab(), "LLM")
         tabs.addTab(self._make_analyzers_tab(), "Analyzers")
         tabs.addTab(self._make_clipboard_tab(), "Clipboard")
@@ -82,6 +111,53 @@ class OptionsView(QWidget):
         btn_row.addStretch()
         btn_row.addWidget(save_btn)
         root.addLayout(btn_row)
+
+    # ── General tab ───────────────────────────────────────────────────────
+    def _make_general_tab(self) -> QWidget:
+        w = QWidget()
+        w.setStyleSheet("background:transparent;")
+        layout = QVBoxLayout(w)
+        layout.setContentsMargins(16, 16, 16, 16)
+
+        grp = QGroupBox("Startup")
+        grp.setStyleSheet(
+            f"QGroupBox{{color:{MUTED_TEXT};font-size:11px;font-weight:600;"
+            f"border:1px solid #334155;border-radius:8px;margin-top:8px;padding-top:8px;}}"
+            f"QGroupBox::title{{subcontrol-origin:margin;left:10px;padding:0 4px;}}"
+        )
+        grp_layout = QVBoxLayout(grp)
+
+        self._chk_login = QCheckBox("Launch SkillScan at login")
+        self._chk_login.setStyleSheet(
+            f"QCheckBox{{color:{LIGHT_CANVAS};font-size:12px;background:transparent;}}"
+        )
+        grp_layout.addWidget(self._chk_login)
+
+        hint = QLabel(
+            "Adds SkillScan to the Windows startup registry key\n"
+            "(HKCU\\…\\Run). The app starts minimised to the system tray."
+        )
+        hint.setStyleSheet(f"color:{MUTED_TEXT};font-size:11px;background:transparent;")
+        grp_layout.addWidget(hint)
+
+        layout.addWidget(grp)
+
+        # ── Display group ──────────────────────────────────────────────────
+        disp_grp = QGroupBox("Display")
+        disp_grp.setStyleSheet(grp.styleSheet())
+        disp_layout = QVBoxLayout(disp_grp)
+
+        _chk_style = f"QCheckBox{{color:{LIGHT_CANVAS};font-size:12px;background:transparent;}}"
+
+        self._chk_folder_tooltip = QCheckBox(
+            "Show full folder path in tooltip (hover over folder name)"
+        )
+        self._chk_folder_tooltip.setStyleSheet(_chk_style)
+        disp_layout.addWidget(self._chk_folder_tooltip)
+
+        layout.addWidget(disp_grp)
+        layout.addStretch()
+        return w
 
     # ── LLM tab ────────────────────────────────────────────────────────────
     def _make_llm_tab(self) -> QWidget:
@@ -282,6 +358,7 @@ class OptionsView(QWidget):
             f"border:1px solid #334155;border-radius:6px;font-size:12px;}}"
             f"QListWidget::item:selected{{background:{ACCENT};}}"
         )
+        self._folder_list.verticalScrollBar().setStyleSheet(SCROLLBAR_STYLE)
         layout.addWidget(self._folder_list)
 
         btn_row = QHBoxLayout()
@@ -340,6 +417,9 @@ class OptionsView(QWidget):
         fail_idx = self._fail_on.findText(fail_on)
         self._fail_on.setCurrentIndex(max(0, fail_idx))
 
+        self._chk_login.setChecked(_get_login_enabled())
+        self._chk_folder_tooltip.setChecked(d.get("show_folder_tooltip", True))
+
         for folder in d.get("watched_folders", []):
             self._folder_list.addItem(QListWidgetItem(folder))
 
@@ -376,6 +456,9 @@ class OptionsView(QWidget):
         d["clipboard_watch_enabled"] = self._cb_watch_enabled.isChecked()
         d["clipboard_watch_interval_secs"] = self._cb_interval.value()
         d["clipboard_min_chars"] = self._cb_min_chars.value()
+
+        _set_login_enabled(self._chk_login.isChecked())
+        d["show_folder_tooltip"] = self._chk_folder_tooltip.isChecked()
 
         cfg.save(d)
         self.settings_changed.emit()

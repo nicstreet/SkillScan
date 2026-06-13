@@ -96,3 +96,16 @@ def card_divider() -> QFrame:
         f"color:{DIVIDER};background:{DIVIDER};border:none;max-height:1px;"
     )
     return div
+
+
+# ── Scrollbar style ───────────────────────────────────────────────────────────
+# Qt stylesheet QScrollBar rules do NOT cascade from a parent widget's
+# setStyleSheet() into child scrollbar widgets.  Always apply directly:
+#   widget.verticalScrollBar().setStyleSheet(SCROLLBAR_STYLE)
+# Never concatenate into a QTextBrowser / QPlainTextEdit / QScrollArea stylesheet.
+SCROLLBAR_STYLE = (
+    "QScrollBar:vertical{background:transparent;width:6px;border:none;margin:0px;}"
+    "QScrollBar::handle:vertical{background:#334155;border-radius:3px;min-height:24px;}"
+    "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0px;}"
+    "QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical{background:none;}"
+)

@@ -1,3 +1,4 @@
 PyQt6>=6.6.0
 watchdog>=4.0.0
+SQLAlchemy>=2.0
 cisco-ai-skill-scanner[all]

@@ -1,0 +1,55 @@
+{
+  "mcpVersion": "1.0",
+  "name": "calculator",
+  "description": "Performs basic arithmetic calculations — add, subtract, multiply, divide.",
+  "tools": [
+    {
+      "name": "add",
+      "description": "Adds two numbers together and returns the sum.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "a": { "type": "number", "description": "First operand" },
+          "b": { "type": "number", "description": "Second operand" }
+        },
+        "required": ["a", "b"]
+      }
+    },
+    {
+      "name": "subtract",
+      "description": "Subtracts b from a and returns the result.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "a": { "type": "number" },
+          "b": { "type": "number" }
+        },
+        "required": ["a", "b"]
+      }
+    },
+    {
+      "name": "multiply",
+      "description": "Multiplies two numbers and returns the product.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "a": { "type": "number" },
+          "b": { "type": "number" }
+        },
+        "required": ["a", "b"]
+      }
+    },
+    {
+      "name": "divide",
+      "description": "Divides a by b. Returns an error if b is zero.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "a": { "type": "number" },
+          "b": { "type": "number", "description": "Divisor — must not be zero" }
+        },
+        "required": ["a", "b"]
+      }
+    }
+  ]
+}

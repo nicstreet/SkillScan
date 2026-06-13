@@ -1,16 +1,21 @@
 """Download and manage the cisco-ai-defense/skill-scanner eval test skills."""
 import io
+import json
 import os
 import shutil
 import subprocess
 import urllib.request
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
 _APPDATA = Path(os.environ.get("APPDATA", "~"))
 TEST_SKILLS_DIR = _APPDATA / "SkillScan" / "test_skills"
+
+# Bundled MCP manifest eval fixtures (ships with the package in skills/mcp-evals/)
+MCP_EVALS_DIR = Path(__file__).parent.parent.parent / "skills" / "mcp-evals"
 
 _ZIP_URL = "https://github.com/cisco-ai-defense/skill-scanner/archive/refs/heads/main.zip"
 _INNER_PREFIX = "skill-scanner-main/evals/skills/"
@@ -34,6 +39,58 @@ def open_guide() -> None:
     guide = TEST_SKILLS_DIR / "GUIDE.md"
     if guide.exists():
         subprocess.Popen(["notepad.exe", str(guide)])
+
+
+# ── MCP eval fixtures ────────────────────────────────────────────────────────
+
+@dataclass
+class McpEval:
+    name: str
+    path: Path           # path to the manifest JSON file
+    expected_safe: bool
+    expected_severity: str   # CLEAN / MEDIUM / HIGH / CRITICAL
+    notes: str
+
+
+def mcp_eval_list() -> list[McpEval]:
+    """Return all MCP eval fixtures from the bundled skills/mcp-evals/ directory."""
+    if not MCP_EVALS_DIR.exists():
+        return []
+    evals: list[McpEval] = []
+    for d in sorted(MCP_EVALS_DIR.iterdir()):
+        if not d.is_dir():
+            continue
+        json_file: Path | None = None
+        for fname in ("mcp.json", "agent.json", "manifest.json"):
+            candidate = d / fname
+            if candidate.exists():
+                json_file = candidate
+                break
+        if json_file is None:
+            continue
+        expected_file = d / "_expected.json"
+        if not expected_file.exists():
+            continue
+        try:
+            exp = json.loads(expected_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        evals.append(McpEval(
+            name=d.name,
+            path=json_file,
+            expected_safe=exp.get("expected_safe", True),
+            expected_severity=exp.get("expected_severity", "CLEAN"),
+            notes=exp.get("notes", ""),
+        ))
+    return evals
+
+
+def mcp_eval_count() -> int:
+    return len(mcp_eval_list())
+
+
+def open_mcp_evals_folder() -> None:
+    subprocess.Popen(["explorer", str(MCP_EVALS_DIR)])
 
 
 class DownloadThread(QThread):
@@ -221,4 +278,47 @@ The static analyzer runs without a key and catches a broad range of issues.
 
 **No tray notification** — Windows Focus Assist may be suppressing notifications.
 Check Action Centre (Win+A) for queued messages.
+
+---
+
+## 7 · MCP Manifest Evals
+
+**Tests:** router type detection for MCP manifests
+
+Four sample MCP manifest JSON files ship bundled with SkillScan in `skills/mcp-evals/`.
+These test that the scanner correctly identifies and labels MCP server definitions.
+
+Each subfolder contains a `mcp.json` manifest and an `_expected.json` ground-truth file:
+
+```json
+{
+  "name": "...",
+  "expected_safe": false,
+  "expected_severity": "CRITICAL",
+  "expected_type": "mcp",
+  "expected_findings": [
+    { "category": "prompt_injection", "severity": "critical", "description": "..." }
+  ],
+  "notes": "..."
+}
+```
+
+### Bundled eval manifests
+
+| Folder | Expected severity | Pattern tested |
+|--------|-------------------|----------------|
+| `clean-calculator-mcp` | CLEAN | Four arithmetic tools — no suspicious instructions |
+| `suspicious-unrestricted-fs-mcp` | MEDIUM | Advertises unrestricted filesystem access with no path scoping |
+| `malicious-data-exfil-mcp` | HIGH | Tool description covertly instructs credential file upload |
+| `malicious-prompt-injection-mcp` | CRITICAL | Full SYSTEM OVERRIDE injection with credential harvest directive |
+
+### Running the MCP detection eval
+
+1. Open **Testing → MCP Manifest Evals** in the SkillScan UI.
+2. Click **Detect All** — each manifest is passed through the router.
+3. A ✓ confirms the file was identified as `MCP_MANIFEST` type.
+4. Compare the expected severity badge against your scanner output when Phase 7 (MCP scanning) is available.
+
+> **Note:** Full LLM-based severity analysis for MCP manifests is planned for Phase 7.
+> Detection testing (router labelling) is available now.
 """

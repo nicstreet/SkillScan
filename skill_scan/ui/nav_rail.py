@@ -1,9 +1,9 @@
 """Nav rail — 56px left sidebar with icon + label nav items and active-state indicator."""
 from PyQt6.QtCore import Qt, QRect, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QPainter
-from PyQt6.QtWidgets import QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QVBoxLayout, QWidget
 
-from ._palette import ACCENT, DEEP_SURFACE, MUTED_TEXT
+from ._palette import ACCENT, DEEP_SURFACE, DIVIDER, MUTED_TEXT
 
 
 class NavItem(QWidget):
@@ -80,7 +80,7 @@ class NavRail(QWidget):
         ("", "Folders"),      # 0
         ("", "Inventory"),    # 1
         ("", "Create"),       # 2
-        ("", "Testing"),      # 3
+        ("", "Testing"),      # 3
     ]
     _BOTTOM: list[tuple[str, str]] = [
         ("", "Options"),      # 4
@@ -103,7 +103,11 @@ class NavRail(QWidget):
             vbox.addWidget(item)
             self._items.append(item)
 
-        vbox.addStretch()
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFixedHeight(1)
+        sep.setStyleSheet(f"background:{DIVIDER};border:none;")
+        vbox.addWidget(sep)
 
         offset = len(self._TOP)
         for i, (icon, label) in enumerate(self._BOTTOM):
@@ -111,6 +115,8 @@ class NavRail(QWidget):
             item.clicked.connect(lambda idx=i + offset: self._select(idx))
             vbox.addWidget(item)
             self._items.append(item)
+
+        vbox.addStretch()
 
         exit_item = NavItem("", "Exit", self)
         exit_item.clicked.connect(self.exit_requested)

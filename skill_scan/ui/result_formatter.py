@@ -3,7 +3,7 @@ import html as _html
 
 from ..core.result_store import ScanResult
 from ._palette import (
-    ANCHOR, DEEP_SURFACE, LIGHT_CANVAS, MUTED_TEXT, SOFT_SURFACE,
+    ANCHOR, DEEP_SURFACE, HOVER_FOCUS, LIGHT_CANVAS, MUTED_TEXT, SOFT_SURFACE,
     CRITICAL_ACCENT, CRITICAL_BG, CRITICAL_LIGHT,
     HIGH_ACCENT, HIGH_BG, HIGH_LIGHT,
     MEDIUM_ACCENT, MEDIUM_BG, MEDIUM_LIGHT,
@@ -36,15 +36,6 @@ def _badge(text: str, style: str | None = None) -> str:
     )
 
 
-def _row(label: str, value: str) -> str:
-    return (
-        f'<tr>'
-        f'<td style="color:{MUTED_TEXT};padding:4px 10px 4px 0;white-space:nowrap;">{label}</td>'
-        f'<td style="color:{LIGHT_CANVAS};padding:4px 0;">{value}</td>'
-        f'</tr>'
-    )
-
-
 def _slug_to_title(slug: str) -> str:
     return slug.replace("-", " ").replace("_", " ").title()
 
@@ -60,17 +51,8 @@ def format_result_html(result: ScanResult) -> str:
         )
 
     p = result.parsed
-    skill_name     = _html.escape(_slug_to_title(p.get("skill_name", "Unknown")))
-    skill_path     = _html.escape(p.get("skill_path", result.path))
-    is_safe        = p.get("is_safe", True)
-    max_sev        = p.get("max_severity", "UNKNOWN")
-    findings_count = p.get("findings_count", 0)
-    duration       = p.get("scan_duration_seconds", 0)
-    analyzers_used = p.get("analyzers_used", [])
-    findings       = p.get("findings", [])
-    failed         = p.get("analyzers_failed", [])
-
-    safe_badge = _badge("SAFE", _SAFE_BADGE) if is_safe else _badge("UNSAFE", _UNSAFE_BADGE)
+    findings = p.get("findings", [])
+    failed   = p.get("analyzers_failed", [])
 
     llm_fails  = [f for f in findings if f.get("rule_id") == "LLM_ANALYSIS_FAILED"]
     real_finds = [f for f in findings if f.get("rule_id") != "LLM_ANALYSIS_FAILED"]
@@ -78,87 +60,42 @@ def format_result_html(result: ScanResult) -> str:
 
     parts = []
 
-    # ── Header ────────────────────────────────────────────────────────────
-    parts.append(
-        f'<p style="font-size:15px;font-weight:700;color:{LIGHT_CANVAS};margin:0 0 8px 0;">'
-        f'{skill_name}</p>'
-        f'<table cellpadding="0" cellspacing="2">'
-    )
-    parts.append(_row("Path",
-        f'<span style="font-size:11px;color:{MUTED_TEXT};">{skill_path}</span>'))
-    parts.append(_row("Safe",     safe_badge))
-    parts.append(_row("Severity", _badge(max_sev)))
-    parts.append(_row("Findings",
-        f'<b style="color:{LIGHT_CANVAS};">{findings_count}</b>'))
-    parts.append(_row("Duration",
-        f'<span style="color:{MUTED_TEXT};">{duration:.2f}s</span>'))
-    parts.append(_row("Analyzers",
-        f'<span style="font-size:11px;color:{MUTED_TEXT};">'
-        f'{_html.escape(", ".join(analyzers_used))}</span>'))
-    parts.append("</table>")
-    parts.append(
-        f'<hr style="border:0;border-top:1px solid {DEEP_SURFACE};margin:12px 0;"/>'
-    )
-
-    # ── LLM / analyser warning banner ─────────────────────────────────────
-    if llm_fails or failed:
-        reasons = []
-        for fa in failed:
-            err = fa.get("error", "")
-            if "credit balance is too low" in err:
-                reasons.append("API credit balance too low — top up at console.anthropic.com")
-            elif "invalid" in err.lower() and "key" in err.lower():
-                reasons.append("Invalid API key — check Settings → LLM")
-            else:
-                reasons.append("Provider error — check Settings → LLM")
-        reason = "; ".join(reasons) if reasons else "Check Settings → LLM"
-        parts.append(
-            f'<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;">'
-            f'<tr><td style="background:{HIGH_BG};border-left:3px solid {HIGH_ACCENT};'
-            f'padding:8px 12px;border-radius:3px;color:{HIGH_LIGHT};font-size:11px;">'
-            f'<b>&#9888; LLM analysis skipped</b> &mdash; {_html.escape(reason)}.'
-            f' Scan completed using static analysis only.</td></tr></table>'
-        )
-
     # ── Findings table ────────────────────────────────────────────────────
     if real_finds:
         th = (
-            f'style="background:{DEEP_SURFACE};color:{MUTED_TEXT};'
-            f'font-size:10px;font-weight:600;letter-spacing:0.5px;'
-            f'padding:6px 8px;text-align:left;"'
+            f'style="background:{HOVER_FOCUS};color:{LIGHT_CANVAS};'
+            f'font-size:12px;font-weight:600;'
+            f'padding:7px 8px;text-align:left;"'
         )
+        # Uniform style for all non-severity cells
+        _cell = f"color:{LIGHT_CANVAS};font-size:12px;font-weight:400;"
         parts.append(
             f'<table width="100%" cellpadding="0" cellspacing="0" '
             f'style="border-collapse:collapse;">'
             f'<tr>'
-            f'<th {th}>SEVERITY</th>'
-            f'<th {th}>CATEGORY</th>'
-            f'<th {th}>TITLE</th>'
-            f'<th {th}>DESCRIPTION</th>'
-            f'<th {th}>REMEDIATION</th>'
-            f'<th {th}>ANALYZER</th>'
+            f'<th {th}>Severity</th>'
+            f'<th {th}>Category</th>'
+            f'<th {th}>Title</th>'
+            f'<th {th}>Description</th>'
+            f'<th {th}>Remediation</th>'
+            f'<th {th}>Analyzer</th>'
             f'</tr>'
         )
         for i, f in enumerate(real_finds):
-            sev     = f.get("severity", "INFO").upper()
-            row_bg  = ANCHOR if i % 2 == 0 else DEEP_SURFACE
-            base    = (
-                f'padding:6px 8px;border-bottom:1px solid {DEEP_SURFACE};'
+            sev    = f.get("severity", "INFO").upper()
+            row_bg = ANCHOR if i % 2 == 0 else DEEP_SURFACE
+            base   = (
+                f'padding:7px 8px;border-bottom:1px solid {DEEP_SURFACE};'
                 f'vertical-align:top;background:{row_bg};'
             )
             parts.append(
                 f'<tr>'
                 f'<td style="{base}">{_badge(sev)}</td>'
-                f'<td style="{base}color:{MUTED_TEXT};font-size:11px;">'
-                f'{_html.escape(f.get("category",""))}</td>'
-                f'<td style="{base}color:{LIGHT_CANVAS};font-size:11px;font-weight:600;">'
-                f'{_html.escape(f.get("title",""))}</td>'
-                f'<td style="{base}color:{MUTED_TEXT};font-size:11px;">'
-                f'{_html.escape(f.get("description",""))}</td>'
-                f'<td style="{base}color:{SOFT_SURFACE};font-size:11px;font-style:italic;">'
-                f'{_html.escape(f.get("remediation",""))}</td>'
-                f'<td style="{base}color:{MUTED_TEXT};font-size:10px;">'
-                f'{_html.escape(f.get("analyzer",""))}</td>'
+                f'<td style="{base}{_cell}">{_html.escape(f.get("category",""))}</td>'
+                f'<td style="{base}{_cell}">{_html.escape(f.get("title",""))}</td>'
+                f'<td style="{base}{_cell}">{_html.escape(f.get("description",""))}</td>'
+                f'<td style="{base}{_cell}">{_html.escape(f.get("remediation",""))}</td>'
+                f'<td style="{base}{_cell}">{_html.escape(f.get("analyzer",""))}</td>'
                 f'</tr>'
             )
         parts.append("</table>")

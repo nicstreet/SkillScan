@@ -152,6 +152,14 @@ class _StatusBar(QWidget):
         layout.addWidget(self._msg)
         layout.addStretch()
 
+        self._counts_lbl = QLabel("")
+        self._counts_lbl.setStyleSheet(f"color:{MUTED_TEXT};font-size:11px;background:transparent;")
+        layout.addWidget(self._counts_lbl)
+
+        sep = QLabel("  ·  ")
+        sep.setStyleSheet(f"color:{MUTED_TEXT};font-size:11px;background:transparent;")
+        layout.addWidget(sep)
+
         c = cfg.load()
         model = c.get("llm_model", "") or "no model configured"
         info = QLabel(f"{model}  ·  v{__version__}")
@@ -163,6 +171,9 @@ class _StatusBar(QWidget):
             f"color:{dot_color};font-size:8px;background:transparent;"
         )
         self._msg.setText(message)
+
+    def set_counts(self, text: str) -> None:
+        self._counts_lbl.setText(text)
 
 
 # ── Main window ──────────────────────────────────────────────────────────────
@@ -182,12 +193,16 @@ class MainWindow(QWidget):
         self.setMinimumSize(1000, 640)
         self.resize(1240, 760)
 
+        self._discovery_workers: list = []   # keep refs so threads aren't GC'd
+
         self._build_ui()
         self._register_views()
         self._center_on_screen()
 
         # Deferred startup check — show warning in status bar if scanner missing
         QTimer.singleShot(600, self._check_scanner)
+        # Startup folder discovery
+        QTimer.singleShot(800, self._start_discovery)
 
     # ── UI construction ──────────────────────────────────────────────────────
 
@@ -259,6 +274,7 @@ class MainWindow(QWidget):
         from .views.testing_view import TestingView
         from .views.options_view import OptionsView
         from .views.about_view import AboutView
+        from .views.skill_detail_view import SkillDetailView
 
         views = [
             FoldersView(),       # 0 — Folders
@@ -267,6 +283,7 @@ class MainWindow(QWidget):
             TestingView(),       # 3 — Testing
             OptionsView(),       # 4 — Options
             AboutView(),         # 5 — About
+            SkillDetailView(),   # 6 — Skill Detail (navigated to, not in nav rail)
         ]
         for view in views:
             self._stack.addWidget(view)
@@ -275,6 +292,13 @@ class MainWindow(QWidget):
         options_view = self._stack.widget(4)
         if hasattr(options_view, "settings_changed"):
             options_view.settings_changed.connect(self._on_settings_changed)
+
+        # Wire folders view → skill detail navigation + status bar counts
+        folders_view = self._stack.widget(0)
+        if hasattr(folders_view, "skill_detail_requested"):
+            folders_view.skill_detail_requested.connect(self._on_skill_detail_requested)
+        if hasattr(folders_view, "tile_counts_changed"):
+            folders_view.tile_counts_changed.connect(self._status.set_counts)
 
     # ── Navigation ───────────────────────────────────────────────────────────
 
@@ -314,6 +338,58 @@ class MainWindow(QWidget):
                 geo.y() + (geo.height() - self.height()) // 2,
             )
 
+    def _start_discovery(self) -> None:
+        """Discover skills in all watch-enabled folders on startup."""
+        try:
+            from ..core.db import Folder, init_db, session
+            from ..core.skill_discovery import DiscoveryWorker
+            init_db()
+            with session() as s:
+                folders = s.query(Folder).filter_by(watch_enabled=True).all()
+                watched = [(f.id, f.path) for f in folders]
+        except Exception:
+            return
+
+        if not watched:
+            return
+
+        self._status.set_state("Discovering skills…", MEDIUM_ACCENT)
+
+        total_done = [0]
+        total = len(watched)
+
+        def _on_finished(result, folder_id=None):
+            total_done[0] += 1
+            if total_done[0] >= total:
+                added = result.added
+                revoked = result.trust_revoked
+                if revoked:
+                    self._status.set_state(
+                        f"Discovery complete — {revoked} trust revocation(s)",
+                        MEDIUM_ACCENT,
+                    )
+                else:
+                    self._status.set_state(
+                        f"Ready  ·  {added} new skill(s) found" if added else "Ready",
+                        SAFE_ACCENT,
+                    )
+
+        for folder_id, folder_path in watched:
+            worker = DiscoveryWorker(folder_id, folder_path)
+            self._discovery_workers.append(worker)
+
+            def _make_handler(w):
+                def _handler(result):
+                    _on_finished(result)
+                    try:
+                        self._discovery_workers.remove(w)
+                    except ValueError:
+                        pass
+                return _handler
+
+            worker.finished.connect(_make_handler(worker))
+            worker.start()
+
     def _check_scanner(self) -> None:
         from ..core.scanner import ScanJob
         if ScanJob._find_skill_scanner() is None:
@@ -321,6 +397,12 @@ class MainWindow(QWidget):
                 "cisco-ai-skill-scanner not found — run: pip install cisco-ai-skill-scanner[all]",
                 MEDIUM_ACCENT,
             )
+
+    def _on_skill_detail_requested(self, skill_id: int) -> None:
+        detail_view = self._stack.widget(6)
+        if detail_view is not None:
+            detail_view.load(skill_id)
+            self.navigate_to(6)
 
     def _on_settings_changed(self) -> None:
         if self._tray_app is not None:

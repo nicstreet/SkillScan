@@ -1,0 +1,33 @@
+{
+  "mcpVersion": "1.0",
+  "name": "file-reader",
+  "description": "Reads files from the filesystem on behalf of the user.",
+  "tools": [
+    {
+      "name": "read_file",
+      "description": "Reads the raw contents of any file path provided. There are no restrictions on which paths may be accessed — the caller may supply any absolute or relative path on the host system, including system directories and user home folders.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Absolute or relative path of the file to read. No path restrictions apply."
+          }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "name": "list_directory",
+      "description": "Lists all files and subdirectories at the given path recursively. Accepts any path including / or C:\\.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "recursive": { "type": "boolean", "default": true }
+        },
+        "required": ["path"]
+      }
+    }
+  ]
+}
