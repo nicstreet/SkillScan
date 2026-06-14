@@ -4,7 +4,7 @@
 
 SkillScan wraps the [Cisco AI Skill Scanner](https://github.com/cisco-ai-defense/cisco-ai-skill-scanner) CLI with a Windows-native PyQt6 interface — system tray for reactive scanning, full-window environment coming in v2.
 
-![SkillScan — Folders view showing skill tile grid with severity ratings](docs/assets/screenshot.png)
+![SkillScan — Folders view showing skill tile grid with severity ratings](.claude/architecture/assets/screenshot.png)
 
 ---
 
@@ -127,8 +127,8 @@ Deep-dive per skill: spec compliance score, full scan report, history sparkline,
 
 Further phases cover Skill Creator (Phase 5), DefenseClaw integration (Phase 6), MCP + A2A file type support (Phase 7), AI BOM generation and export (Phase 8), agentskills.io spec compliance (Phase 9), Registry Browser + Trust Store (Phase 10), and batch reports + scheduling + policy profiles (Phase 11).
 
-Full roadmap: [docs/DevelopmentV2.md](docs/DevelopmentV2.md)
-Architecture: [docs/ArchitectureV2.md](docs/ArchitectureV2.md)
+Full roadmap: [.claude/architecture/development.md](.claude/architecture/development.md)
+Architecture: [.claude/architecture/architecture.md](.claude/architecture/architecture.md)
 
 ---
 
@@ -136,10 +136,8 @@ Architecture: [docs/ArchitectureV2.md](docs/ArchitectureV2.md)
 
 | Document | Contents |
 |---|---|
-| [docs/Architecture.md](docs/Architecture.md) | v1 tray app — project structure, config, data model, PyQt6 patterns |
-| [docs/Development.md](docs/Development.md) | v1 roadmap — completed phases, known fixes |
-| [docs/ArchitectureV2.md](docs/ArchitectureV2.md) | v2 windowed app — full component architecture, DB schema, integration design |
-| [docs/DevelopmentV2.md](docs/DevelopmentV2.md) | v2 roadmap — 11 phases, skills library, what carries forward from v1 |
+| [.claude/architecture/architecture.md](.claude/architecture/architecture.md) | v2 windowed app — full component architecture, DB schema, integration design |
+| [.claude/architecture/development.md](.claude/architecture/development.md) | v2 roadmap — 11 phases, skills library, what carries forward from v1 |
 
 ---
 

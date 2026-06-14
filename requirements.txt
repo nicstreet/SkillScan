@@ -1,4 +1,20 @@
+# PyQt6 UI
 PyQt6>=6.6.0
+
+# Folder watching — triggers re-scan when skill files change on disk
 watchdog>=4.0.0
+
+# SQLite ORM — skills, folders, scan results, BOM snapshots
 SQLAlchemy>=2.0
+
+# Core scanner CLI — static analysis, trigger detection, LLM analysis of SKILL.md / MCP / A2A files
 cisco-ai-skill-scanner[all]
+
+# Audit against known vulnerability databases (PyPI Advisory Database, OSV)
+pip-audit==2.7.2
+
+# LLM routing — Anthropic, OpenAI, Groq and other providers via unified API
+litellm>=1.0.0
+
+# Windows integration — system tray, taskbar dock, registry context menu
+pywin32>=306
