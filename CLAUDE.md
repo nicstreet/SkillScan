@@ -49,6 +49,13 @@ src/skill_scan/
     └── context_menu.py
 ```
 
+## Setup
+
+```powershell
+pip install -r requirements-dev.txt   # runtime + dev tools (ruff, black, pytest)
+pip install -r requirements.txt       # runtime only
+```
+
 ## Commands
 
 ```powershell
