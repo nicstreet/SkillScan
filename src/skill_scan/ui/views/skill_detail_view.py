@@ -31,6 +31,7 @@ from ...core.db import Skill, ScanResult as DbScanResult, init_db, session
 from ...core.scanner import ScanJob
 from ...core.result_store import ScanResult as LegacyScanResult
 from ..result_formatter import format_result_html
+from .._compliance_render import render_compliance_html
 from .._palette import (
     SYS_ACTION_PRIMARY,
     SYS_ACTION_HOVER,
@@ -745,115 +746,7 @@ class SkillDetailView(QWidget):
         except Exception:
             pass
 
-        # Choose score colour
-        if score >= 75:
-            bar_colour, score_colour = SYS_BADGE_SAFE, SYS_BADGE_SAFE
-        elif score >= 50:
-            bar_colour, score_colour = SYS_BORDER_ADVISORY, SYS_BORDER_ADVISORY
-        else:
-            bar_colour, score_colour = SYS_BADGE_UNSAFE, SYS_BADGE_UNSAFE
-
-        bar_w = score  # 1% = 1px out of 100px, use percentage
-
-        parts = [
-            f'<html><body style="background:{SYS_BG_PRIMARY};color:{SYS_TXT_PRIMARY};'
-            f'font-family:Segoe UI,sans-serif;font-size:12px;margin:24px;">',
-            # Score row
-            '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">',
-            "<tr>",
-            f'<td style="font-size:13px;font-weight:700;color:{SYS_TXT_PRIMARY};'
-            f'padding-bottom:10px;">SPEC COMPLIANCE SCORE</td>',
-            f'<td style="text-align:right;font-size:22px;font-weight:700;'
-            f'color:{score_colour};padding-bottom:10px;">{score}</td>',
-            "</tr></table>",
-            # Score bar
-            f'<div style="background:{SYS_BG_SECONDARY};border-radius:4px;height:8px;'
-            f'width:100%;margin-bottom:20px;">',
-            f'<div style="background:{bar_colour};border-radius:4px;height:8px;'
-            f'width:{bar_w}%;"></div></div>',
-        ]
-
-        # Required fields
-        parts.append(
-            f'<p style="font-size:11px;font-weight:700;color:{SYS_TXT_MUTED};'
-            f'letter-spacing:1px;margin-bottom:8px;">REQUIRED FIELDS</p>'
-        )
-        parts.append(
-            '<table width="100%" cellpadding="0" cellspacing="0" '
-            'style="border-collapse:collapse;margin-bottom:20px;">'
-        )
-        for f in spec_compliance.REQUIRED_FIELDS:
-            present = bool(meta.get(f))
-            icon = (
-                f'<span style="color:{SYS_BADGE_SAFE};">&#10003;</span>'
-                if present
-                else f'<span style="color:{SYS_BADGE_UNSAFE};">&#10007;</span>'
-            )
-            val = (
-                _html.escape(str(meta[f])[:60])
-                if present
-                else f'<span style="color:{SYS_BADGE_UNSAFE};">missing</span>'
-            )
-            parts.append(
-                f'<tr style="border-bottom:1px solid {SYS_BG_SECONDARY};">'
-                f'<td style="padding:5px 8px;width:20px;">{icon}</td>'
-                f'<td style="padding:5px 8px;color:{SYS_TXT_PRIMARY};font-weight:600;">'
-                f"{_html.escape(f)}</td>"
-                f'<td style="padding:5px 8px;color:{SYS_TXT_MUTED};">{val}</td>'
-                f"</tr>"
-            )
-        parts.append("</table>")
-
-        # Recommended fields
-        parts.append(
-            f'<p style="font-size:11px;font-weight:700;color:{SYS_TXT_MUTED};'
-            f'letter-spacing:1px;margin-bottom:8px;">RECOMMENDED FIELDS</p>'
-        )
-        parts.append(
-            '<table width="100%" cellpadding="0" cellspacing="0" '
-            'style="border-collapse:collapse;margin-bottom:20px;">'
-        )
-        for f in spec_compliance.RECOMMENDED_FIELDS:
-            present = bool(meta.get(f))
-            icon = (
-                f'<span style="color:{SYS_BADGE_SAFE};">&#10003;</span>'
-                if present
-                else f'<span style="color:{SYS_BORDER_ADVISORY};">&#9679;</span>'
-            )
-            val = (
-                _html.escape(str(meta[f])[:60])
-                if present
-                else f'<span style="color:{SYS_BORDER_ADVISORY};">not set</span>'
-            )
-            parts.append(
-                f'<tr style="border-bottom:1px solid {SYS_BG_SECONDARY};">'
-                f'<td style="padding:5px 8px;width:20px;">{icon}</td>'
-                f'<td style="padding:5px 8px;color:{SYS_TXT_PRIMARY};font-weight:600;">'
-                f"{_html.escape(f)}</td>"
-                f'<td style="padding:5px 8px;color:{SYS_TXT_MUTED};">{val}</td>'
-                f"</tr>"
-            )
-        parts.append("</table>")
-
-        # Issues — structural problems on present fields + body-budget warnings,
-        # neither of which fit the present/missing checklist above.
-        issues = result.name_errors + result.description_errors + result.body_warnings
-        if issues:
-            parts.append(
-                f'<p style="font-size:11px;font-weight:700;color:{SYS_TXT_MUTED};'
-                f'letter-spacing:1px;margin-bottom:8px;">ISSUES</p>'
-            )
-            parts.append('<ul style="margin:0 0 20px;padding-left:18px;">')
-            for issue in issues:
-                parts.append(
-                    f'<li style="color:{SYS_BORDER_WARNING};padding:2px 0;">'
-                    f"{_html.escape(issue)}</li>"
-                )
-            parts.append("</ul>")
-
-        parts.append("</body></html>")
-
-        self._compliance_browser.setHtml("".join(parts))
+        self._compliance_browser.setHtml(render_compliance_html(meta, result))
 
     def _on_file_changed(self, path: str) -> None:
         """File watcher callback — if trusted skill's file changed, auto-revoke trust."""

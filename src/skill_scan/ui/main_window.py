@@ -52,6 +52,7 @@ from ._icons import (
     ICON_COPY,
     ICON_AI_USAGE,
     ICON_BULLHORN,
+    ICON_SHIELD_HALVED,
 )
 from ._palette import (
     SYS_ACTION_PRIMARY,
@@ -84,6 +85,7 @@ _VIEW_NAMES = [
     "Prompt Builder",
     "Amalgamator",
     "Skill Builder",
+    "Skill Audit",
     "Options",
     "About",
 ]
@@ -385,8 +387,9 @@ class _TaskBar(QWidget):
         (8, "Skill Builder"),
     ]
     _NAV_BOTTOM = [
-        (9, "Options"),
-        (10, "About"),
+        (9, "Skill Audit"),
+        (10, "Options"),
+        (11, "About"),
     ]
 
     def _show_nav_menu(self) -> None:
@@ -668,6 +671,7 @@ class _NavPanel(QWidget):
         (ICON_EDIT_PEN, "Prompt Builder"),
         (ICON_COPY, "Amalgamator"),
         (ICON_AI_USAGE, "Skill Builder"),
+        (ICON_SHIELD_HALVED, "Skill Audit"),
     ]
     _BOTTOM: list[tuple[str, str]] = [
         (ICON_OPTIONS, "Options"),
@@ -927,6 +931,7 @@ class MainWindow(QWidget):
         from .views.prompt_builder_view import PromptBuilderView
         from .views.amalgamator_view import AmalgamatorView
         from .views.skill_competence_view import SkillCompetenceView
+        from .views.skill_audit_view import SkillAuditView
         from .views.options_view import OptionsView
         from .views.about_view import AboutView
         from .views.skill_detail_view import SkillDetailView
@@ -941,14 +946,15 @@ class MainWindow(QWidget):
             PromptBuilderView(),  # 6
             AmalgamatorView(),  # 7
             SkillCompetenceView(),  # 8
-            OptionsView(),  # 9
-            AboutView(),  # 10
-            SkillDetailView(),  # 11
+            SkillAuditView(),  # 9
+            OptionsView(),  # 10
+            AboutView(),  # 11
+            SkillDetailView(),  # 12
         ]
         for view in views:
             self._stack.addWidget(view)
 
-        options_view = self._stack.widget(9)
+        options_view = self._stack.widget(10)
         if hasattr(options_view, "settings_changed"):
             options_view.settings_changed.connect(self._on_settings_changed)
 
@@ -958,7 +964,7 @@ class MainWindow(QWidget):
         if hasattr(dashboard_view, "navigate_to_activity"):
             dashboard_view.navigate_to_activity.connect(lambda: self._on_nav_changed(5))
         if hasattr(dashboard_view, "navigate_to_options"):
-            dashboard_view.navigate_to_options.connect(lambda: self._on_nav_changed(9))
+            dashboard_view.navigate_to_options.connect(lambda: self._on_nav_changed(10))
         if hasattr(dashboard_view, "scan_all_requested"):
             dashboard_view.scan_all_requested.connect(self._on_scan_all_requested)
         if hasattr(dashboard_view, "page_actions_changed"):
@@ -1085,10 +1091,10 @@ class MainWindow(QWidget):
             )
 
     def _on_skill_detail_requested(self, skill_id: int) -> None:
-        detail_view = self._stack.widget(11)
+        detail_view = self._stack.widget(12)
         if detail_view is not None:
             detail_view.load(skill_id)
-            self.navigate_to(11)
+            self.navigate_to(12)
 
     def _show_options_window(self) -> None:
         from .options_window import OptionsWindow

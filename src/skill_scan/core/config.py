@@ -42,6 +42,7 @@ _DEFAULTS: dict[str, Any] = {
     "dashboard_order": [],
     # ── App ───────────────────────────────────────────────────────────────────
     "watched_folders": [],
+    "audit_roots": [],  # extra project .claude/skills/ folders for Skill Audit
     "watched_folder_notify": True,
     "suppress_scan_windows": False,
     "suppress_error_notifications": False,
