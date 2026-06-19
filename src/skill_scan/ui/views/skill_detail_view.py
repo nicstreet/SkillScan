@@ -26,24 +26,27 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...core import spec_compliance
 from ...core.db import Skill, ScanResult as DbScanResult, init_db, session
 from ...core.scanner import ScanJob
 from ...core.result_store import ScanResult as LegacyScanResult
 from ..result_formatter import format_result_html
 from .._palette import (
-    ACCENT,
-    ANCHOR,
-    CRITICAL_ACCENT,
-    CRITICAL_BG,
-    DEEP_SURFACE,
-    DIVIDER,
-    HIGH_ACCENT,
-    HOVER_FOCUS,
-    LIGHT_CANVAS,
-    MEDIUM_ACCENT,
-    MUTED_TEXT,
-    SAFE_ACCENT,
-    SOFT_SURFACE,
+    SYS_ACTION_PRIMARY,
+    SYS_ACTION_HOVER,
+    SYS_BG_PRIMARY,
+    SYS_BG_SECONDARY,
+    SYS_BADGE_SAFE,
+    SYS_BADGE_UNSAFE,
+    SYS_BORDER_ADVISORY,
+    SYS_BORDER_LOW,
+    SYS_BORDER_WARNING,
+    SYS_CRITICAL_BG,
+    SYS_STROKE_DIVIDER,
+    SYS_STROKE_SUBTLE,
+    SYS_TXT_PRIMARY,
+    SYS_TXT_SECONDARY,
+    SYS_TXT_MUTED,
 )
 from .._widgets import SCROLLBAR_STYLE
 
@@ -51,28 +54,18 @@ from .._widgets import SCROLLBAR_STYLE
 
 _LOG_PATH = Path(os.environ.get("APPDATA", "~")) / "SkillScan" / "activity.log"
 
-# Spec compliance — required fields deduct 12pts each, recommended 4pts each
-_REQUIRED_FIELDS = [
-    "name",
-    "version",
-    "description",
-    "authors",
-    "license",
-    "tags",
-    "permissions",
-]
-_RECOMMENDED_FIELDS = ["homepage", "repository", "changelog", "examples"]
-_REQ_WEIGHT = 12
-_REC_WEIGHT = 4
+# Spec compliance field lists/weights now live in core/spec_compliance.py —
+# the single source of truth shared with Skill Manager. Don't reintroduce
+# local copies here.
 
 _SEV_COLOUR = {
-    "clean": SAFE_ACCENT,
-    "safe": SAFE_ACCENT,
-    "low": SOFT_SURFACE,
-    "medium": MEDIUM_ACCENT,
-    "high": HIGH_ACCENT,
-    "critical": CRITICAL_ACCENT,
-    "unknown": MUTED_TEXT,
+    "clean": SYS_BADGE_SAFE,
+    "safe": SYS_BADGE_SAFE,
+    "low": SYS_BORDER_LOW,
+    "medium": SYS_BORDER_ADVISORY,
+    "high": SYS_BORDER_WARNING,
+    "critical": SYS_BADGE_UNSAFE,
+    "unknown": SYS_TXT_MUTED,
 }
 
 # Severity badge text — includes Cisco priority designation
@@ -86,26 +79,26 @@ _SEV_BADGE_TEXT = {
 }
 
 _TYPE_LABEL = {"skill": "SKILL", "mcp": "MCP", "a2a": "A2A", "unknown": "?"}
-_BADGE_BG = DEEP_SURFACE
-_SEC_TEXT = "#CBD5E1"
+_BADGE_BG = SYS_BG_SECONDARY
+_SEC_TEXT = SYS_TXT_SECONDARY
 
-# Shared badge geometry — type badge and severity badge rendered at identical height
+# Shared badge geometry — matches tile _NB style for visual consistency
 _BADGE_H = (
-    "font-size:10px;font-weight:700;padding:3px 8px;"
+    "font-size:8px;font-weight:700;padding:1px 6px;"
     "border-radius:4px;letter-spacing:1px;"
 )
 
 _TAB_STYLE = f"""
     QTabWidget::pane {{
         border: none;
-        background: {ANCHOR};
+        background: {SYS_BG_SECONDARY};
     }}
     QTabBar {{
-        background: {DEEP_SURFACE};
+        background: {SYS_BG_SECONDARY};
     }}
     QTabBar::tab {{
-        background: {DEEP_SURFACE};
-        color: {MUTED_TEXT};
+        background: {SYS_BG_SECONDARY};
+        color: {SYS_TXT_MUTED};
         padding: 8px 24px;
         font-size: 12px;
         font-weight: 600;
@@ -114,33 +107,36 @@ _TAB_STYLE = f"""
         min-width: 80px;
     }}
     QTabBar::tab:selected {{
-        background: {ANCHOR};
-        color: {LIGHT_CANVAS};
-        border-bottom: 2px solid {ACCENT};
+        background: {SYS_BG_PRIMARY};
+        color: {SYS_TXT_PRIMARY};
+        border-bottom: 2px solid {SYS_ACTION_PRIMARY};
     }}
     QTabBar::tab:hover:!selected {{
-        color: {LIGHT_CANVAS};
+        color: {SYS_TXT_PRIMARY};
     }}
 """
 
 _HIST_TABLE_STYLE = f"""
     QTableWidget {{
-        background: {ANCHOR};
-        alternate-background-color: {DEEP_SURFACE};
+        background: {SYS_BG_SECONDARY};
+        alternate-background-color: {SYS_BG_PRIMARY};
         border: none;
-        color: {LIGHT_CANVAS};
-        font-size: 12px;
+        color: {SYS_TXT_PRIMARY};
+        font-size: 10px;
         font-weight: 400;
-        selection-background-color: {ACCENT};
+        selection-background-color: {SYS_ACTION_PRIMARY};
     }}
     QHeaderView::section {{
-        background: {HOVER_FOCUS};
-        color: {LIGHT_CANVAS};
-        font-size: 12px;
-        font-weight: 600;
+        background: {SYS_ACTION_PRIMARY};
+        color: {SYS_TXT_PRIMARY};
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1px;
         padding: 6px 8px;
         border: none;
+        border-right: 1px solid {SYS_STROKE_DIVIDER};
     }}
+    QHeaderView::section:last {{ border-right: none; }}
     QTableWidget::item {{ padding: 4px 8px; }}
 """
 
@@ -232,7 +228,7 @@ class _Sparkline(QWidget):
         h = self.height()
         x = 0
         for sev in self._data:
-            colour = _SEV_COLOUR.get((sev or "unknown").lower(), MUTED_TEXT)
+            colour = _SEV_COLOUR.get((sev or "unknown").lower(), SYS_TXT_MUTED)
             p.fillRect(x, (h - seg) // 2, seg, seg, QColor(colour))
             x += seg + 2
         p.end()
@@ -245,11 +241,11 @@ def _primary_btn(text: str) -> QPushButton:
     btn = QPushButton(text)
     btn.setCursor(Qt.CursorShape.PointingHandCursor)
     btn.setStyleSheet(
-        f"QPushButton{{background:{ACCENT};color:{LIGHT_CANVAS};border:none;"
+        f"QPushButton{{background:{SYS_ACTION_PRIMARY};color:{SYS_TXT_PRIMARY};border:none;"
         f"border-radius:6px;padding:5px 14px;font-size:12px;font-weight:600;}}"
-        f"QPushButton:hover{{background:{HOVER_FOCUS};}}"
-        f"QPushButton:pressed{{background:{HOVER_FOCUS};}}"
-        f"QPushButton:disabled{{background:{DIVIDER};color:{MUTED_TEXT};}}"
+        f"QPushButton:hover{{background:{SYS_ACTION_HOVER};}}"
+        f"QPushButton:pressed{{background:{SYS_ACTION_HOVER};}}"
+        f"QPushButton:disabled{{background:{SYS_STROKE_DIVIDER};color:{SYS_TXT_MUTED};}}"
     )
     return btn
 
@@ -258,11 +254,11 @@ def _styled_btn(text: str) -> QPushButton:
     btn = QPushButton(text)
     btn.setCursor(Qt.CursorShape.PointingHandCursor)
     btn.setStyleSheet(
-        f"QPushButton{{background:transparent;color:{LIGHT_CANVAS};"
-        f"border:1px solid #334155;border-radius:6px;padding:5px 14px;font-size:12px;}}"
-        f"QPushButton:hover{{border-color:{ACCENT};color:{ACCENT};}}"
+        f"QPushButton{{background:transparent;color:{SYS_TXT_PRIMARY};"
+        f"border:1px solid {SYS_STROKE_SUBTLE};border-radius:6px;padding:5px 14px;font-size:12px;}}"
+        f"QPushButton:hover{{border-color:{SYS_ACTION_PRIMARY};color:{SYS_ACTION_PRIMARY};}}"
         f"QPushButton:pressed{{background:#0f2028;}}"
-        f"QPushButton:disabled{{color:{MUTED_TEXT};border-color:{DIVIDER};}}"
+        f"QPushButton:disabled{{color:{SYS_TXT_MUTED};border-color:{SYS_STROKE_DIVIDER};}}"
     )
     return btn
 
@@ -282,7 +278,7 @@ class SkillDetailView(QWidget):
         self._history: list[dict] = []
         self._file_watcher = QFileSystemWatcher(self)
         self._file_watcher.fileChanged.connect(self._on_file_changed)
-        self.setStyleSheet(f"background:{ANCHOR};")
+        self.setStyleSheet(f"background:{SYS_BG_PRIMARY};")
         self._build_ui()
 
     # ── Construction ─────────────────────────────────────────────────────────
@@ -297,9 +293,9 @@ class SkillDetailView(QWidget):
         outer.addWidget(self._make_tabs(), 1)
 
     def _make_header(self) -> QWidget:
-        """Unified DEEP_SURFACE panel: badges, name, path, info chips, action buttons."""
+        """Unified header panel: badges, name, path, info chips, action buttons."""
         hdr = QWidget()
-        hdr.setStyleSheet(f"background:{DEEP_SURFACE};")
+        hdr.setStyleSheet(f"background:{SYS_BG_PRIMARY};")
 
         # Outer row: left content column | right badges column
         outer = QHBoxLayout(hdr)
@@ -319,7 +315,7 @@ class SkillDetailView(QWidget):
         self._type_lbl = QLabel("SKILL")
         self._type_lbl.setStyleSheet(
             f"{_BADGE_H}color:{_SEC_TEXT};"
-            f"background:{_BADGE_BG};border:1px solid {ACCENT};"
+            f"background:{_BADGE_BG};border:1px solid {SYS_ACTION_PRIMARY};"
         )
         self._type_lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         badge_row.addWidget(self._type_lbl)
@@ -330,8 +326,8 @@ class SkillDetailView(QWidget):
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
         self._unsafe_badge.setStyleSheet(
-            f"{_BADGE_H}color:{CRITICAL_ACCENT};"
-            f"background:{CRITICAL_BG};border:1px solid {CRITICAL_ACCENT};"
+            f"{_BADGE_H}color:{SYS_BADGE_UNSAFE};"
+            f"background:{SYS_CRITICAL_BG};border:1px solid {SYS_BADGE_UNSAFE};"
         )
         self._unsafe_badge.setVisible(False)
         badge_row.addWidget(self._unsafe_badge)
@@ -343,7 +339,7 @@ class SkillDetailView(QWidget):
         )
         self._results_badge.setStyleSheet(
             f"{_BADGE_H}color:{_SEC_TEXT};"
-            f"background:{_BADGE_BG};border:1px solid #334155;"
+            f"background:{_BADGE_BG};border:1px solid {SYS_STROKE_SUBTLE};"
         )
         badge_row.addWidget(self._results_badge)
         badge_row.addSpacing(4)
@@ -354,7 +350,7 @@ class SkillDetailView(QWidget):
         )
         self._analyzers_badge.setStyleSheet(
             f"{_BADGE_H}color:{_SEC_TEXT};"
-            f"background:{_BADGE_BG};border:1px solid #334155;"
+            f"background:{_BADGE_BG};border:1px solid {SYS_STROKE_SUBTLE};"
         )
         badge_row.addWidget(self._analyzers_badge)
         badge_row.addStretch()
@@ -363,14 +359,14 @@ class SkillDetailView(QWidget):
         # Skill name
         self._name_lbl = QLabel("—")
         self._name_lbl.setStyleSheet(
-            f"color:{LIGHT_CANVAS};font-size:20px;font-weight:700;background:transparent;"
+            f"color:{SYS_TXT_PRIMARY};font-size:14px;font-weight:700;background:transparent;"
         )
         left.addWidget(self._name_lbl)
 
         # Path · version · authors
         self._meta_lbl = QLabel("—")
         self._meta_lbl.setStyleSheet(
-            f"color:{MUTED_TEXT};font-size:11px;background:transparent;"
+            f"color:{SYS_TXT_MUTED};font-size:11px;background:transparent;"
         )
         self._meta_lbl.setWordWrap(True)
         left.addWidget(self._meta_lbl)
@@ -421,15 +417,15 @@ class SkillDetailView(QWidget):
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
         self._llm_badge.setStyleSheet(
-            f"{_BADGE_H}color:{MEDIUM_ACCENT};"
-            f"background:transparent;border:1px solid {MEDIUM_ACCENT};"
+            f"{_BADGE_H}color:{SYS_BORDER_ADVISORY};"
+            f"background:transparent;border:1px solid {SYS_BORDER_ADVISORY};"
         )
         self._llm_badge.setVisible(False)
         right.addWidget(self._llm_badge, 0, Qt.AlignmentFlag.AlignRight)
 
         self._trust_badge = QLabel("")
         self._trust_badge.setStyleSheet(
-            f"color:{ACCENT};font-size:10px;font-weight:700;"
+            f"color:{SYS_ACTION_PRIMARY};font-size:10px;font-weight:700;"
             f"background:transparent;letter-spacing:1px;"
         )
         right.addWidget(self._trust_badge, 0, Qt.AlignmentFlag.AlignRight)
@@ -445,13 +441,13 @@ class SkillDetailView(QWidget):
 
         # ── Report ────────────────────────────────────────────────────────
         report_w = QWidget()
-        report_w.setStyleSheet(f"background:{ANCHOR};")
+        report_w.setStyleSheet(f"background:{SYS_BG_SECONDARY};")
         rl = QVBoxLayout(report_w)
         rl.setContentsMargins(0, 0, 0, 0)
         self._browser = QTextBrowser()
         self._browser.setStyleSheet(
-            f"QTextBrowser{{background:{ANCHOR};border:none;"
-            f"color:{LIGHT_CANVAS};font-family:Segoe UI,sans-serif;padding:16px;}}"
+            f"QTextBrowser{{background:{SYS_BG_SECONDARY};border:none;"
+            f"color:{SYS_TXT_PRIMARY};font-family:Segoe UI,sans-serif;padding:16px;}}"
         )
         self._browser.verticalScrollBar().setStyleSheet(SCROLLBAR_STYLE)
         self._browser.setOpenExternalLinks(False)
@@ -461,7 +457,7 @@ class SkillDetailView(QWidget):
 
         # ── History ───────────────────────────────────────────────────────
         hist_w = QWidget()
-        hist_w.setStyleSheet(f"background:{ANCHOR};")
+        hist_w.setStyleSheet(f"background:{SYS_BG_SECONDARY};")
         hl = QVBoxLayout(hist_w)
         hl.setContentsMargins(20, 16, 20, 16)
         hl.setSpacing(12)
@@ -488,13 +484,13 @@ class SkillDetailView(QWidget):
 
         # ── Raw Output ────────────────────────────────────────────────────
         raw_w = QWidget()
-        raw_w.setStyleSheet(f"background:{ANCHOR};")
+        raw_w.setStyleSheet(f"background:{SYS_BG_PRIMARY};")
         rawl = QVBoxLayout(raw_w)
         rawl.setContentsMargins(0, 0, 0, 0)
         self._raw_edit = QPlainTextEdit()
         self._raw_edit.setReadOnly(True)
         self._raw_edit.setStyleSheet(
-            f"QPlainTextEdit{{background:{ANCHOR};color:{MUTED_TEXT};"
+            f"QPlainTextEdit{{background:{SYS_BG_PRIMARY};color:{SYS_TXT_MUTED};"
             f"font-family:Consolas,monospace;font-size:11px;"
             f"border:none;padding:16px;}}"
         )
@@ -504,13 +500,13 @@ class SkillDetailView(QWidget):
 
         # ── Compliance ───────────────────────────────────────────────────
         comp_w = QWidget()
-        comp_w.setStyleSheet(f"background:{ANCHOR};")
+        comp_w.setStyleSheet(f"background:{SYS_BG_PRIMARY};")
         compl = QVBoxLayout(comp_w)
         compl.setContentsMargins(0, 0, 0, 0)
         self._compliance_browser = QTextBrowser()
         self._compliance_browser.setStyleSheet(
-            f"QTextBrowser{{background:{ANCHOR};border:none;"
-            f"color:{LIGHT_CANVAS};font-family:Segoe UI,sans-serif;padding:16px;}}"
+            f"QTextBrowser{{background:{SYS_BG_PRIMARY};border:none;"
+            f"color:{SYS_TXT_PRIMARY};font-family:Segoe UI,sans-serif;padding:16px;}}"
         )
         self._compliance_browser.verticalScrollBar().setStyleSheet(SCROLLBAR_STYLE)
         self._compliance_browser.setOpenExternalLinks(False)
@@ -608,7 +604,9 @@ class SkillDetailView(QWidget):
 
     def _update_actions(self, sd: dict, latest: dict | None) -> None:
         scanning = self._scan_job is not None
-        self._scan_btn.setEnabled(sd["spec_type"] == "skill" and not scanning)
+        self._scan_btn.setEnabled(
+            sd["spec_type"] in ("skill", "mcp", "a2a") and not scanning
+        )
         self._scan_btn.setText("Scanning…" if scanning else "Scan Now")
         trusted = sd["trusted"]
         is_safe = latest["is_safe"] if latest else False
@@ -678,7 +676,7 @@ class SkillDetailView(QWidget):
             if not history:
                 self._table.setRowCount(1)
                 item = QTableWidgetItem("No scan history")
-                item.setForeground(QColor(MUTED_TEXT))
+                item.setForeground(QColor(SYS_TXT_MUTED))
                 self._table.setItem(0, 0, item)
                 self._table.setSpan(0, 0, 1, 4)
                 return
@@ -694,18 +692,20 @@ class SkillDetailView(QWidget):
                 when = _age_str(ts)
 
                 w_item = QTableWidgetItem(when)
-                w_item.setForeground(QColor(LIGHT_CANVAS))
+                w_item.setForeground(QColor(SYS_TXT_PRIMARY))
                 if ts:
                     fmt = "%Y-%m-%d %H:%M:%S UTC" if ts.tzinfo else "%Y-%m-%d %H:%M:%S"
                     w_item.setToolTip(ts.strftime(fmt))
 
                 s_item = QTableWidgetItem(sev.upper())
-                s_item.setForeground(QColor(_SEV_COLOUR.get(sev.lower(), MUTED_TEXT)))
+                s_item.setForeground(
+                    QColor(_SEV_COLOUR.get(sev.lower(), SYS_TXT_MUTED))
+                )
 
                 d_item = QTableWidgetItem(dur)
-                d_item.setForeground(QColor(LIGHT_CANVAS))
+                d_item.setForeground(QColor(SYS_TXT_PRIMARY))
                 safe_item = QTableWidgetItem("Yes" if r["is_safe"] else "No")
-                safe_item.setForeground(QColor(LIGHT_CANVAS))
+                safe_item.setForeground(QColor(SYS_TXT_PRIMARY))
 
                 self._table.setItem(row, 0, w_item)
                 self._table.setItem(row, 1, s_item)
@@ -721,30 +721,19 @@ class SkillDetailView(QWidget):
         """Parse SKILL.md frontmatter, score it, and render the Compliance tab."""
         if (spec_type or "").lower() != "skill" or not Path(path).exists():
             self._compliance_browser.setHtml(
-                f'<html><body style="background:{ANCHOR};color:{MUTED_TEXT};'
+                f'<html><body style="background:{SYS_BG_PRIMARY};color:{SYS_TXT_MUTED};'
                 f'font-family:Segoe UI,sans-serif;font-size:12px;margin:24px;">'
                 f"<p>Spec compliance is only available for SKILL.md files.</p>"
                 f"</body></html>"
             )
             return
 
-        try:
-            import yaml
-
-            text = Path(path).read_text(encoding="utf-8", errors="replace")
-            meta: dict = {}
-            if text.startswith("---"):
-                end = text.find("\n---", 3)
-                if end != -1:
-                    meta = yaml.safe_load(text[3:end]) or {}
-        except Exception:
-            meta = {}
-
-        missing_req = [f for f in _REQUIRED_FIELDS if not meta.get(f)]
-        missing_rec = [f for f in _RECOMMENDED_FIELDS if not meta.get(f)]
-        score = max(
-            0, 100 - len(missing_req) * _REQ_WEIGHT - len(missing_rec) * _REC_WEIGHT
+        meta = spec_compliance.parse_frontmatter(path)
+        body = spec_compliance.parse_body(path)
+        result = spec_compliance.score(
+            meta, folder_name=Path(path).parent.name, body=body
         )
+        score = result.score
 
         # Persist score to DB
         try:
@@ -758,27 +747,27 @@ class SkillDetailView(QWidget):
 
         # Choose score colour
         if score >= 75:
-            bar_colour, score_colour = SAFE_ACCENT, SAFE_ACCENT
+            bar_colour, score_colour = SYS_BADGE_SAFE, SYS_BADGE_SAFE
         elif score >= 50:
-            bar_colour, score_colour = MEDIUM_ACCENT, MEDIUM_ACCENT
+            bar_colour, score_colour = SYS_BORDER_ADVISORY, SYS_BORDER_ADVISORY
         else:
-            bar_colour, score_colour = CRITICAL_ACCENT, CRITICAL_ACCENT
+            bar_colour, score_colour = SYS_BADGE_UNSAFE, SYS_BADGE_UNSAFE
 
         bar_w = score  # 1% = 1px out of 100px, use percentage
 
         parts = [
-            f'<html><body style="background:{ANCHOR};color:{LIGHT_CANVAS};'
+            f'<html><body style="background:{SYS_BG_PRIMARY};color:{SYS_TXT_PRIMARY};'
             f'font-family:Segoe UI,sans-serif;font-size:12px;margin:24px;">',
             # Score row
             '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">',
             "<tr>",
-            f'<td style="font-size:13px;font-weight:700;color:{LIGHT_CANVAS};'
+            f'<td style="font-size:13px;font-weight:700;color:{SYS_TXT_PRIMARY};'
             f'padding-bottom:10px;">SPEC COMPLIANCE SCORE</td>',
             f'<td style="text-align:right;font-size:22px;font-weight:700;'
             f'color:{score_colour};padding-bottom:10px;">{score}</td>',
             "</tr></table>",
             # Score bar
-            f'<div style="background:{DEEP_SURFACE};border-radius:4px;height:8px;'
+            f'<div style="background:{SYS_BG_SECONDARY};border-radius:4px;height:8px;'
             f'width:100%;margin-bottom:20px;">',
             f'<div style="background:{bar_colour};border-radius:4px;height:8px;'
             f'width:{bar_w}%;"></div></div>',
@@ -786,65 +775,82 @@ class SkillDetailView(QWidget):
 
         # Required fields
         parts.append(
-            f'<p style="font-size:11px;font-weight:700;color:{MUTED_TEXT};'
+            f'<p style="font-size:11px;font-weight:700;color:{SYS_TXT_MUTED};'
             f'letter-spacing:1px;margin-bottom:8px;">REQUIRED FIELDS</p>'
         )
         parts.append(
             '<table width="100%" cellpadding="0" cellspacing="0" '
             'style="border-collapse:collapse;margin-bottom:20px;">'
         )
-        for f in _REQUIRED_FIELDS:
+        for f in spec_compliance.REQUIRED_FIELDS:
             present = bool(meta.get(f))
             icon = (
-                f'<span style="color:{SAFE_ACCENT};">&#10003;</span>'
+                f'<span style="color:{SYS_BADGE_SAFE};">&#10003;</span>'
                 if present
-                else f'<span style="color:{CRITICAL_ACCENT};">&#10007;</span>'
+                else f'<span style="color:{SYS_BADGE_UNSAFE};">&#10007;</span>'
             )
             val = (
                 _html.escape(str(meta[f])[:60])
                 if present
-                else f'<span style="color:{CRITICAL_ACCENT};">missing</span>'
+                else f'<span style="color:{SYS_BADGE_UNSAFE};">missing</span>'
             )
             parts.append(
-                f'<tr style="border-bottom:1px solid {DEEP_SURFACE};">'
+                f'<tr style="border-bottom:1px solid {SYS_BG_SECONDARY};">'
                 f'<td style="padding:5px 8px;width:20px;">{icon}</td>'
-                f'<td style="padding:5px 8px;color:{LIGHT_CANVAS};font-weight:600;">'
+                f'<td style="padding:5px 8px;color:{SYS_TXT_PRIMARY};font-weight:600;">'
                 f"{_html.escape(f)}</td>"
-                f'<td style="padding:5px 8px;color:{MUTED_TEXT};">{val}</td>'
+                f'<td style="padding:5px 8px;color:{SYS_TXT_MUTED};">{val}</td>'
                 f"</tr>"
             )
         parts.append("</table>")
 
         # Recommended fields
         parts.append(
-            f'<p style="font-size:11px;font-weight:700;color:{MUTED_TEXT};'
+            f'<p style="font-size:11px;font-weight:700;color:{SYS_TXT_MUTED};'
             f'letter-spacing:1px;margin-bottom:8px;">RECOMMENDED FIELDS</p>'
         )
         parts.append(
             '<table width="100%" cellpadding="0" cellspacing="0" '
             'style="border-collapse:collapse;margin-bottom:20px;">'
         )
-        for f in _RECOMMENDED_FIELDS:
+        for f in spec_compliance.RECOMMENDED_FIELDS:
             present = bool(meta.get(f))
             icon = (
-                f'<span style="color:{SAFE_ACCENT};">&#10003;</span>'
+                f'<span style="color:{SYS_BADGE_SAFE};">&#10003;</span>'
                 if present
-                else f'<span style="color:{MEDIUM_ACCENT};">&#9679;</span>'
+                else f'<span style="color:{SYS_BORDER_ADVISORY};">&#9679;</span>'
             )
             val = (
                 _html.escape(str(meta[f])[:60])
                 if present
-                else f'<span style="color:{MEDIUM_ACCENT};">not set</span>'
+                else f'<span style="color:{SYS_BORDER_ADVISORY};">not set</span>'
             )
             parts.append(
-                f'<tr style="border-bottom:1px solid {DEEP_SURFACE};">'
+                f'<tr style="border-bottom:1px solid {SYS_BG_SECONDARY};">'
                 f'<td style="padding:5px 8px;width:20px;">{icon}</td>'
-                f'<td style="padding:5px 8px;color:{LIGHT_CANVAS};font-weight:600;">'
+                f'<td style="padding:5px 8px;color:{SYS_TXT_PRIMARY};font-weight:600;">'
                 f"{_html.escape(f)}</td>"
-                f'<td style="padding:5px 8px;color:{MUTED_TEXT};">{val}</td>'
+                f'<td style="padding:5px 8px;color:{SYS_TXT_MUTED};">{val}</td>'
                 f"</tr>"
             )
         parts.append("</table>")
+
+        # Issues — structural problems on present fields + body-budget warnings,
+        # neither of which fit the present/missing checklist above.
+        issues = result.name_errors + result.description_errors + result.body_warnings
+        if issues:
+            parts.append(
+                f'<p style="font-size:11px;font-weight:700;color:{SYS_TXT_MUTED};'
+                f'letter-spacing:1px;margin-bottom:8px;">ISSUES</p>'
+            )
+            parts.append('<ul style="margin:0 0 20px;padding-left:18px;">')
+            for issue in issues:
+                parts.append(
+                    f'<li style="color:{SYS_BORDER_WARNING};padding:2px 0;">'
+                    f"{_html.escape(issue)}</li>"
+                )
+            parts.append("</ul>")
+
         parts.append("</body></html>")
 
         self._compliance_browser.setHtml("".join(parts))
@@ -915,12 +921,12 @@ class SkillDetailView(QWidget):
         self._update_llm_badge(None)
         self._raw_edit.setPlainText("")
         self._browser.setHtml(
-            f'<html><body style="background:{ANCHOR};color:{MUTED_TEXT};'
+            f'<html><body style="background:{SYS_BG_PRIMARY};color:{SYS_TXT_MUTED};'
             f'font-family:Segoe UI,sans-serif;font-size:13px;padding:32px 24px;">'
             f'<p style="margin-top:60px;text-align:center;font-size:14px;">'
             f"This skill has not been scanned yet.</p>"
             f'<p style="text-align:center;margin-top:8px;">'
-            f'Click <b style="color:{ACCENT};">Scan Now</b> to run the security scanner.'
+            f'Click <b style="color:{SYS_ACTION_PRIMARY};">Scan Now</b> to run the security scanner.'
             f"</p></body></html>"
         )
 
@@ -929,16 +935,16 @@ class SkillDetailView(QWidget):
         text = _SEV_BADGE_TEXT.get(sev, "UNSCANNED") if sev else "UNSCANNED"
         if not sev:
             style = (
-                f"{_BADGE_H}color:{MUTED_TEXT};"
-                f"background:transparent;border:1px solid {MUTED_TEXT};"
+                f"{_BADGE_H}color:{SYS_TXT_MUTED};"
+                f"background:transparent;border:1px solid {SYS_TXT_MUTED};"
             )
         elif sev == "critical":
             style = (
-                f"{_BADGE_H}color:{CRITICAL_ACCENT};"
-                f"background:{CRITICAL_BG};border:1px solid {CRITICAL_ACCENT};"
+                f"{_BADGE_H}color:{SYS_BADGE_UNSAFE};"
+                f"background:{SYS_CRITICAL_BG};border:1px solid {SYS_BADGE_UNSAFE};"
             )
         else:
-            colour = _SEV_COLOUR.get(sev, MUTED_TEXT)
+            colour = _SEV_COLOUR.get(sev, SYS_TXT_MUTED)
             style = (
                 f"{_BADGE_H}color:{colour};"
                 f"background:transparent;border:1px solid {colour};"
@@ -962,7 +968,11 @@ class SkillDetailView(QWidget):
                 skill = s.query(Skill).filter_by(id=self._skill_id).first()
                 if skill is None:
                     return
-                scan_dir = str(Path(skill.path).parent)
+                # skill-scanner expects the parent directory; mcp/a2a scanners take the file path
+                if skill.spec_type == "skill":
+                    scan_path = str(Path(skill.path).parent)
+                else:
+                    scan_path = skill.path
                 skill_id = skill.id
                 skill_name = skill.name
         except Exception:
@@ -970,11 +980,11 @@ class SkillDetailView(QWidget):
         self._scan_btn.setText("Scanning…")
         self._scan_btn.setEnabled(False)
         _log_activity("Scan started", skill_name)
-        job = ScanJob(scan_dir)
+        job = ScanJob(scan_path)
         job.finished.connect(
             lambda result: self._on_scan_done(skill_id, skill_name, result)
         )
-        job.error.connect(lambda _msg: self._on_scan_error())
+        job.error.connect(self._on_scan_error)
         self._scan_job = job
         job.start()
 
@@ -1007,11 +1017,20 @@ class SkillDetailView(QWidget):
         )
         self._refresh()
 
-    def _on_scan_error(self) -> None:
+    def _on_scan_error(self, msg: str = "") -> None:
         self._scan_job = None
         self._scan_btn.setText("Scan Now")
         self._scan_btn.setEnabled(True)
-        _log_activity("Scan error", self._skill_name)
+        _log_activity(
+            "Scan error", f"{self._skill_name}  —  {msg}" if msg else self._skill_name
+        )
+        self._browser.setHtml(
+            f'<html><body style="background:{SYS_BG_SECONDARY};'
+            f'font-family:Segoe UI,sans-serif;font-size:10px;padding:24px;">'
+            f'<p style="color:{SYS_BADGE_UNSAFE};font-weight:700;margin-bottom:8px;">Scan failed</p>'
+            f'<p style="color:{SYS_TXT_MUTED};">{_html.escape(msg)}</p>'
+            f"</body></html>"
+        )
 
     def _toggle_trust(self) -> None:
         if self._skill_id is None:
@@ -1048,13 +1067,13 @@ class SkillDetailView(QWidget):
 
 def _chip(text: str) -> QLabel:
     lbl = QLabel(text)
-    lbl.setStyleSheet(f"color:{MUTED_TEXT};font-size:11px;background:transparent;")
+    lbl.setStyleSheet(f"color:{SYS_TXT_MUTED};font-size:11px;background:transparent;")
     return lbl
 
 
 def _dot() -> QLabel:
     lbl = QLabel("  ·  ")
-    lbl.setStyleSheet(f"color:{MUTED_TEXT};font-size:11px;background:transparent;")
+    lbl.setStyleSheet(f"color:{SYS_TXT_MUTED};font-size:11px;background:transparent;")
     return lbl
 
 
@@ -1062,5 +1081,5 @@ def _hdiv() -> QFrame:
     div = QFrame()
     div.setFrameShape(QFrame.Shape.HLine)
     div.setFixedHeight(1)
-    div.setStyleSheet(f"background:{DIVIDER};border:none;")
+    div.setStyleSheet(f"background:{SYS_STROKE_DIVIDER};border:none;")
     return div

@@ -7,21 +7,20 @@ from pathlib import Path
 
 from collections import Counter
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt, QRect, QTimer, pyqtSignal
+from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import (
-    QAbstractItemView,
     QComboBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
-    QListWidget,
-    QListWidgetItem,
     QMenu,
     QPushButton,
     QScrollArea,
     QStackedWidget,
+    QTreeWidget,
+    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -35,21 +34,95 @@ from ...core.db import (
     init_db,
     session,
 )
+from ...core.router import SpecType, detect_type
 from ...core.scanner import ScanJob
 from ...core.skill_discovery import DiscoveryWorker
 from .._flow_layout import FlowContainer
 from .._palette import (
-    ACCENT,
-    ANCHOR,
-    DEEP_SURFACE,
-    DIVIDER,
-    HOVER_FOCUS,
-    LIGHT_CANVAS,
-    MEDIUM_ACCENT,
-    MUTED_TEXT,
+    SYS_ACTION_PRIMARY,
+    SYS_ACTION_HOVER,
+    SYS_BG_PRIMARY,
+    SYS_BG_SECONDARY,
+    SYS_BG_ROW_HOVER,
+    SYS_STROKE_DIVIDER,
+    SYS_STROKE_SUBTLE,
+    SYS_TXT_PRIMARY,
+    SYS_TXT_MUTED,
+    SYS_TXT_SCAN_PROGRESS,
 )
+from .._icons import fa, ICON_GRID_SM, ICON_GRID_LG, ICON_LIST_VIEW
 from .._widgets import SCROLLBAR_STYLE
+from .skill_table import SkillTableView
 from .skill_tile import SkillInfo, SkillTile
+
+# ── View icon button ─────────────────────────────────────────────────────────
+
+
+class _ViewIconButton(QWidget):
+    """Toolbar icon button drawn entirely via paintEvent — no QPushButton machinery.
+
+    Inheriting from QWidget (not QPushButton/QAbstractButton) prevents the
+    Fusion style's polish() from creating a QFocusFrame overlay.
+    """
+
+    clicked = pyqtSignal()
+    _ICON_FONT = fa(14)
+
+    def __init__(self, char: str, rotation: int = 0, parent=None):
+        super().__init__(parent)
+        self._char = char
+        self._rotation = rotation
+        self._active = False
+        self._hovered = False
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+    def set_active(self, active: bool) -> None:
+        self._active = active
+        self.update()
+
+    def enterEvent(self, e) -> None:
+        self._hovered = True
+        self.update()
+        super().enterEvent(e)
+
+    def leaveEvent(self, e) -> None:
+        self._hovered = False
+        self.update()
+        super().leaveEvent(e)
+
+    def mousePressEvent(self, e) -> None:
+        if e.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(e)
+
+    def paintEvent(self, _e) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w, h = self.width(), self.height()
+
+        if self._active:
+            p.fillRect(0, 0, w, h, QColor(SYS_ACTION_PRIMARY))
+            fg = QColor(SYS_TXT_PRIMARY)
+        elif self._hovered:
+            fg = QColor(SYS_TXT_PRIMARY)
+        else:
+            fg = QColor(SYS_TXT_MUTED)
+
+        p.translate(w / 2, h / 2)
+        if self._rotation:
+            p.rotate(self._rotation)
+        p.setFont(self._ICON_FONT)
+        p.setPen(fg)
+        p.drawText(
+            QRect(-w // 2, -h // 2, w, h), Qt.AlignmentFlag.AlignCenter, self._char
+        )
+        p.end()
+
+
+# Backward-compat alias — table button still created as _RotatedIconButton in some paths
+_RotatedIconButton = _ViewIconButton
+
 
 # ── Folder list row ───────────────────────────────────────────────────────────
 
@@ -59,21 +132,22 @@ class _FolderRow(QWidget):
         self, path: str, skill_count: int, show_tooltip: bool = True, parent=None
     ):
         super().__init__(parent)
+        self.setStyleSheet("background:transparent;")
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12, 8, 10, 8)
         layout.setSpacing(8)
 
         name_lbl = QLabel(Path(path).name or path)
         name_lbl.setStyleSheet(
-            f"color:{LIGHT_CANVAS};font-size:12px;background:transparent;"
+            f"color:{SYS_TXT_PRIMARY};font-size:11px;background:transparent;"
         )
         name_lbl.setMaximumWidth(160)
         layout.addWidget(name_lbl, 1)
 
         self._count_lbl = QLabel(str(skill_count))
         self._count_lbl.setStyleSheet(
-            f"color:{MUTED_TEXT};font-size:10px;"
-            f"background:{ANCHOR};border-radius:8px;padding:1px 7px;min-width:20px;"
+            f"color:{SYS_TXT_MUTED};font-size:10px;"
+            f"background:transparent;padding:1px 7px;min-width:20px;"
         )
         self._count_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self._count_lbl)
@@ -94,7 +168,7 @@ _FILTER_LABELS = {"all": "All", "skill": "Skill", "mcp": "MCP", "a2a": "A2A"}
 _SIZE_KEYS = ["medium", "large"]
 _SIZE_LABELS = {"medium": "Medium", "large": "Large"}
 _SIZE_COLS = {"medium": 4, "large": 3}
-_SIZE_ICONS = {"medium": "", "large": ""}  # GridViewSmall, GridView
+_SIZE_ICONS = {"medium": ICON_GRID_SM, "large": ICON_GRID_LG}
 
 _SORT_KEYS = ["name", "severity", "results"]
 _SORT_LABELS = {"name": "Name", "severity": "Severity", "results": "Results"}
@@ -116,12 +190,13 @@ class FoldersView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(f"background:{ANCHOR};")
+        self.setStyleSheet(f"background:{SYS_BG_PRIMARY};")
 
         self._current_folder_id: int | None = None
         self._active_filter: str = "all"
         self._active_tile_size: str = "large"
         self._active_sort: str = "name"
+        self._active_view: str = "grid"
         self._tiles: dict[int, SkillTile] = {}
         self._tile_infos: list[SkillInfo] = []
 
@@ -149,42 +224,42 @@ class FoldersView(QWidget):
         vdiv = QFrame()
         vdiv.setFrameShape(QFrame.Shape.VLine)
         vdiv.setFixedWidth(1)
-        vdiv.setStyleSheet(f"background:{DIVIDER};border:none;")
+        vdiv.setStyleSheet(f"background:{SYS_STROKE_DIVIDER};border:none;")
         outer.addWidget(vdiv)
 
         outer.addWidget(self._make_right_pane(), 1)
 
     def _make_left_pane(self) -> QWidget:
         pane = QWidget()
-        pane.setFixedWidth(240)
-        pane.setStyleSheet(f"background:{DEEP_SURFACE};")
+        pane.setFixedWidth(168)
+        pane.setStyleSheet(f"background:{SYS_BG_SECONDARY};")
         layout = QVBoxLayout(pane)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
         # Header
         header = QWidget()
-        header.setFixedHeight(47)
-        header.setStyleSheet(f"background:{DEEP_SURFACE};")
+        header.setFixedHeight(40)
+        header.setStyleSheet(f"background:{SYS_BG_SECONDARY};")
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(12, 0, 8, 0)
 
         lbl = QLabel("FOLDERS")
         lbl.setStyleSheet(
-            f"color:{MUTED_TEXT};font-size:10px;font-weight:700;"
+            f"color:{SYS_TXT_MUTED};font-size:8px;font-weight:700;"
             f"letter-spacing:2px;background:transparent;"
         )
         header_layout.addWidget(lbl)
         header_layout.addStretch()
 
         add_btn = QPushButton("+")
-        add_btn.setFixedSize(28, 28)
+        add_btn.setFixedSize(24, 24)
         add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         add_btn.setToolTip("Add folder")
         add_btn.setStyleSheet(
-            f"QPushButton{{background:{ACCENT};color:{LIGHT_CANVAS};border:none;"
-            f"border-radius:5px;font-size:16px;font-weight:300;padding-bottom:2px;}}"
-            f"QPushButton:hover{{background:{HOVER_FOCUS};}}"
+            f"QPushButton{{background:{SYS_ACTION_PRIMARY};color:{SYS_TXT_PRIMARY};border:none;"
+            f"border-radius:5px;font-size:20px;font-weight:300;padding-bottom:2px;}}"
+            f"QPushButton:hover{{background:{SYS_ACTION_HOVER};}}"
         )
         add_btn.clicked.connect(self._add_folder)
         header_layout.addWidget(add_btn)
@@ -193,39 +268,44 @@ class FoldersView(QWidget):
         hdiv = QFrame()
         hdiv.setFrameShape(QFrame.Shape.HLine)
         hdiv.setFixedHeight(1)
-        hdiv.setStyleSheet(f"background:{DIVIDER};border:none;")
+        hdiv.setStyleSheet(f"background:{SYS_STROKE_DIVIDER};border:none;")
         layout.addWidget(hdiv)
 
-        self._folder_list = QListWidget()
-        self._folder_list.setStyleSheet(f"""
-            QListWidget {{
-                background: {DEEP_SURFACE};
+        self._folder_tree = QTreeWidget()
+        self._folder_tree.setHeaderHidden(True)
+        self._folder_tree.setIndentation(14)
+        self._folder_tree.setStyleSheet(f"""
+            QTreeWidget {{
+                background: {SYS_BG_SECONDARY};
                 border: none;
                 outline: none;
             }}
-            QListWidget::item {{
-                border-bottom: 1px solid {DIVIDER};
+            QTreeWidget::item {{
+                border-bottom: 1px solid {SYS_STROKE_DIVIDER};
                 padding: 0px;
             }}
-            QListWidget::item:selected {{
-                background: {ANCHOR};
+            QTreeWidget::item:selected {{
+                background: {SYS_BG_PRIMARY};
             }}
-            QListWidget::item:hover:!selected {{
-                background: #162033;
+            QTreeWidget::item:hover:!selected {{
+                background: {SYS_BG_ROW_HOVER};
+            }}
+            QTreeWidget::branch {{
+                background: {SYS_BG_SECONDARY};
+            }}
+            QTreeWidget::branch:selected {{
+                background: {SYS_BG_PRIMARY};
             }}
         """)
-        self._folder_list.setSelectionMode(
-            QAbstractItemView.SelectionMode.SingleSelection
-        )
-        self._folder_list.currentItemChanged.connect(self._on_folder_changed)
-        self._folder_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self._folder_list.customContextMenuRequested.connect(self._folder_context_menu)
-        layout.addWidget(self._folder_list, 1)
+        self._folder_tree.currentItemChanged.connect(self._on_folder_changed)
+        self._folder_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self._folder_tree.customContextMenuRequested.connect(self._folder_context_menu)
+        layout.addWidget(self._folder_tree, 1)
         return pane
 
     def _make_right_pane(self) -> QWidget:
         pane = QWidget()
-        pane.setStyleSheet(f"background:{ANCHOR};")
+        pane.setStyleSheet(f"background:{SYS_BG_SECONDARY};")
         layout = QVBoxLayout(pane)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -235,22 +315,22 @@ class FoldersView(QWidget):
         tdiv = QFrame()
         tdiv.setFrameShape(QFrame.Shape.HLine)
         tdiv.setFixedHeight(1)
-        tdiv.setStyleSheet(f"background:{DIVIDER};border:none;")
+        tdiv.setStyleSheet(f"background:{SYS_STROKE_DIVIDER};border:none;")
         layout.addWidget(tdiv)
 
         # Content stack: empty state (0) | tile scroll area (1)
         self._content_stack = QStackedWidget()
-        self._content_stack.setStyleSheet(f"background:{ANCHOR};")
+        self._content_stack.setStyleSheet(f"background:{SYS_BG_SECONDARY};")
 
         # Page 0 — empty state
         empty = QWidget()
-        empty.setStyleSheet(f"background:{ANCHOR};")
+        empty.setStyleSheet(f"background:{SYS_BG_SECONDARY};")
         empty_layout = QVBoxLayout(empty)
         empty_layout.addStretch()
         empty_lbl = QLabel("Select a folder to view skills")
         empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_lbl.setStyleSheet(
-            f"color:{MUTED_TEXT};font-size:14px;background:transparent;"
+            f"color:{SYS_TXT_MUTED};font-size:14px;background:transparent;"
         )
         empty_layout.addWidget(empty_lbl)
         empty_layout.addStretch()
@@ -261,51 +341,58 @@ class FoldersView(QWidget):
         self._scroll.setWidgetResizable(True)
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
         self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self._scroll.setStyleSheet(f"background:{ANCHOR};border:none;")
+        self._scroll.setStyleSheet(f"background:{SYS_BG_SECONDARY};border:none;")
         self._scroll.verticalScrollBar().setStyleSheet(SCROLLBAR_STYLE)
 
-        self._tile_container = FlowContainer(h_spacing=12, v_spacing=12)
-        self._tile_container.setStyleSheet(f"background:{ANCHOR};")
-        self._tile_container.setContentsMargins(20, 20, 20, 20)
+        self._tile_container = FlowContainer(h_spacing=8, v_spacing=8)
+        self._tile_container.setStyleSheet(f"background:{SYS_BG_SECONDARY};")
+        self._tile_container.setContentsMargins(8, 8, 8, 8)
         self._tile_container.set_cols(_SIZE_COLS[self._active_tile_size])
         self._scroll.setWidget(self._tile_container)
         self._content_stack.addWidget(self._scroll)
+
+        # Page 2 — table view
+        self._table_view = SkillTableView()
+        self._table_view.setStyleSheet(f"background:{SYS_BG_SECONDARY};")
+        self._table_view.detail_requested.connect(self.skill_detail_requested)
+        self._content_stack.addWidget(self._table_view)
 
         layout.addWidget(self._content_stack, 1)
         return pane
 
     def _make_toolbar(self) -> QWidget:
         bar = QWidget()
-        bar.setFixedHeight(47)
-        bar.setStyleSheet(f"background:{DEEP_SURFACE};")
+        self._toolbar = bar
+        bar.setFixedHeight(40)
+        bar.setStyleSheet(f"background:{SYS_BG_SECONDARY};")
         layout = QHBoxLayout(bar)
         layout.setContentsMargins(16, 0, 12, 0)
         layout.setSpacing(8)
 
         _combo_style = (
-            f"QComboBox{{background:transparent;color:{MUTED_TEXT};"
-            f"border:1px solid #334155;border-radius:4px;"
+            f"QComboBox{{background:transparent;color:{SYS_TXT_MUTED};"
+            f"border:1px solid {SYS_STROKE_SUBTLE};border-radius:4px;"
             f"padding:2px 4px 2px 8px;font-size:10px;font-weight:700;"
-            f"letter-spacing:1px;min-width:80px;}}"
-            f"QComboBox:hover{{color:{LIGHT_CANVAS};border-color:{ACCENT};}}"
+            f"letter-spacing:1px;min-width:60px;}}"
+            f"QComboBox:hover{{color:{SYS_TXT_PRIMARY};border-color:{SYS_ACTION_PRIMARY};}}"
             f"QComboBox::drop-down{{border:none;width:16px;}}"
-            f"QComboBox QAbstractItemView{{background:{DEEP_SURFACE};"
-            f"color:{LIGHT_CANVAS};selection-background-color:{ACCENT};"
-            f"border:1px solid {DIVIDER};font-size:10px;font-weight:700;"
+            f"QComboBox QAbstractItemView{{background:{SYS_BG_SECONDARY};"
+            f"color:{SYS_TXT_PRIMARY};selection-background-color:{SYS_ACTION_PRIMARY};"
+            f"border:1px solid {SYS_STROKE_DIVIDER};font-size:10px;font-weight:700;"
             f"padding:2px;}}"
         )
 
         # Filter dropdown
         filters_lbl = QLabel("FILTER")
         filters_lbl.setStyleSheet(
-            f"color:{MUTED_TEXT};font-size:10px;font-weight:700;"
+            f"color:{SYS_TXT_MUTED};font-size:8px;font-weight:700;"
             f"letter-spacing:2px;background:transparent;"
         )
         layout.addWidget(filters_lbl)
         layout.addSpacing(6)
 
         self._filter_combo = QComboBox()
-        self._filter_combo.setFixedHeight(26)
+        self._filter_combo.setFixedHeight(20)
         self._filter_combo.setCursor(Qt.CursorShape.PointingHandCursor)
         self._filter_combo.setStyleSheet(_combo_style)
         for key in _FILTER_KEYS:
@@ -319,7 +406,7 @@ class FoldersView(QWidget):
         vsep = QFrame()
         vsep.setFrameShape(QFrame.Shape.VLine)
         vsep.setFixedSize(1, 20)
-        vsep.setStyleSheet(f"background:{DIVIDER};border:none;")
+        vsep.setStyleSheet(f"background:{SYS_STROKE_DIVIDER};border:none;")
         layout.addSpacing(4)
         layout.addWidget(vsep)
         layout.addSpacing(4)
@@ -327,14 +414,14 @@ class FoldersView(QWidget):
         # Sort dropdown
         sort_lbl = QLabel("SORT")
         sort_lbl.setStyleSheet(
-            f"color:{MUTED_TEXT};font-size:10px;font-weight:700;"
+            f"color:{SYS_TXT_MUTED};font-size:8px;font-weight:700;"
             f"letter-spacing:2px;background:transparent;"
         )
         layout.addWidget(sort_lbl)
         layout.addSpacing(6)
 
         self._sort_combo = QComboBox()
-        self._sort_combo.setFixedHeight(26)
+        self._sort_combo.setFixedHeight(20)
         self._sort_combo.setCursor(Qt.CursorShape.PointingHandCursor)
         self._sort_combo.setStyleSheet(_combo_style)
         for key in _SORT_KEYS:
@@ -348,55 +435,60 @@ class FoldersView(QWidget):
         vsep2 = QFrame()
         vsep2.setFrameShape(QFrame.Shape.VLine)
         vsep2.setFixedSize(1, 20)
-        vsep2.setStyleSheet(f"background:{DIVIDER};border:none;")
+        vsep2.setStyleSheet(f"background:{SYS_STROKE_DIVIDER};border:none;")
         layout.addSpacing(4)
         layout.addWidget(vsep2)
         layout.addSpacing(4)
 
-        # Size icon buttons
-        size_lbl = QLabel("SIZE")
-        size_lbl.setStyleSheet(
-            f"color:{MUTED_TEXT};font-size:10px;font-weight:700;"
+        # View icon buttons (grid sizes + table)
+        view_lbl = QLabel("VIEW")
+        view_lbl.setStyleSheet(
+            f"color:{SYS_TXT_MUTED};font-size:8px;font-weight:700;"
             f"letter-spacing:2px;background:transparent;"
         )
-        layout.addWidget(size_lbl)
+        layout.addWidget(view_lbl)
         layout.addSpacing(6)
 
-        self._size_btns: dict[str, QPushButton] = {}
-        _icon_font = QFont("Segoe Fluent Icons", 16)
+        self._size_btns: dict[str, _ViewIconButton] = {}
         for key in _SIZE_KEYS:
-            btn = QPushButton(_SIZE_ICONS[key])
-            btn.setFont(_icon_font)
-            btn.setFixedSize(30, 30)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn = _ViewIconButton(_SIZE_ICONS[key])
+            btn.setFixedSize(24, 24)
             btn.setToolTip(_SIZE_LABELS[key])
             btn.clicked.connect(lambda _=False, k=key: self._set_tile_size(k))
             self._size_btns[key] = btn
             layout.addWidget(btn)
-        self._update_size_styles()
+
+        self._table_btn = _ViewIconButton(ICON_LIST_VIEW, rotation=90)
+        self._table_btn.setFixedSize(24, 24)
+        self._table_btn.setToolTip("Table view")
+        self._table_btn.clicked.connect(lambda: self._set_view("table"))
+        layout.addWidget(self._table_btn)
+
+        self._update_view_styles()
 
         layout.addStretch()
 
         self._scan_progress_lbl = QLabel("")
         self._scan_progress_lbl.setStyleSheet(
-            f"color:{MEDIUM_ACCENT};font-size:11px;background:transparent;"
+            f"color:{SYS_TXT_SCAN_PROGRESS};font-size:11px;background:transparent;"
         )
         layout.addWidget(self._scan_progress_lbl)
 
         self._skill_count_lbl = QLabel("")
         self._skill_count_lbl.setStyleSheet(
-            f"color:{MUTED_TEXT};font-size:11px;background:transparent;"
+            f"color:{SYS_TXT_MUTED};font-size:11px;background:transparent;"
         )
         layout.addWidget(self._skill_count_lbl)
 
         self._scan_all_btn = QPushButton("Scan All")
         self._scan_all_btn.setEnabled(False)
+        self._scan_all_btn.setFixedHeight(24)
         self._scan_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._scan_all_btn.setStyleSheet(
-            f"QPushButton{{background:{ACCENT};color:{LIGHT_CANVAS};border:none;"
-            f"border-radius:6px;padding:5px 14px;font-size:12px;font-weight:600;}}"
-            f"QPushButton:hover{{background:{HOVER_FOCUS};}}"
-            f"QPushButton:disabled{{background:{DIVIDER};color:{MUTED_TEXT};}}"
+            f"QPushButton{{background:{SYS_ACTION_PRIMARY};color:{SYS_TXT_PRIMARY};border:none;"
+            f"border-radius:6px;padding:2px 14px;font-size:12px;font-weight:600;}}"
+            f"QPushButton:hover{{background:{SYS_ACTION_HOVER};}}"
+            f"QPushButton:disabled{{background:{SYS_STROKE_DIVIDER};color:{SYS_TXT_MUTED};}}"
         )
         self._scan_all_btn.clicked.connect(self._scan_all)
         layout.addWidget(self._scan_all_btn)
@@ -409,34 +501,42 @@ class FoldersView(QWidget):
         self._apply_filter()
 
     def _apply_filter(self) -> None:
-        for skill_id, tile in self._tiles.items():
-            if self._active_filter == "all":
-                tile.setVisible(True)
-            else:
-                tile.setVisible(tile._info.spec_type == self._active_filter)
-        self._tile_container.updateGeometry()
-
-    def _update_size_styles(self) -> None:
-        for key, btn in self._size_btns.items():
-            active = key == self._active_tile_size
-            btn.setStyleSheet(
-                f"QPushButton{{background:{ACCENT if active else 'transparent'};"
-                f"color:{LIGHT_CANVAS if active else MUTED_TEXT};"
-                f"border:1px solid {ACCENT if active else '#334155'};"
-                f"border-radius:4px;padding:0px;}}"
-                f"QPushButton:hover{{color:{LIGHT_CANVAS};border-color:{ACCENT};}}"
+        for tile in self._tiles.values():
+            tile.setVisible(
+                self._active_filter == "all"
+                or tile._info.spec_type == self._active_filter
             )
-            btn.update()
+        self._tile_container.updateGeometry()
+        self._table_view.apply_filter(self._active_filter)
+
+    def _update_view_styles(self) -> None:
+        for key, btn in self._size_btns.items():
+            btn.set_active(
+                (self._active_view == "grid") and (key == self._active_tile_size)
+            )
+        self._table_btn.set_active(self._active_view == "table")
+        self._toolbar.repaint()
 
     def _set_tile_size(self, key: str) -> None:
-        if self._active_tile_size == key:
+        if self._active_view == "table":
+            self._active_view = "grid"
+            if self._current_folder_id is not None:
+                self._content_stack.setCurrentIndex(1)
+        if self._active_tile_size != key:
+            self._active_tile_size = key
+            compact = key == "medium"
+            for tile in self._tiles.values():
+                tile.set_compact(compact)
+            self._tile_container.set_cols(_SIZE_COLS[key])
+        self._update_view_styles()
+
+    def _set_view(self, mode: str) -> None:
+        if self._active_view == mode:
             return
-        self._active_tile_size = key
-        self._update_size_styles()
-        compact = key == "medium"
-        for tile in self._tiles.values():
-            tile.set_compact(compact)
-        self._tile_container.set_cols(_SIZE_COLS[key])
+        self._active_view = mode
+        self._update_view_styles()
+        if self._current_folder_id is not None:
+            self._content_stack.setCurrentIndex(2 if mode == "table" else 1)
 
     def _set_sort(self, key: str) -> None:
         if self._active_sort == key:
@@ -483,6 +583,16 @@ class FoldersView(QWidget):
     def _init_folders(self) -> None:
         try:
             init_db()
+        except Exception:
+            pass
+        self.sync_watched_folders()
+
+    def sync_watched_folders(self) -> None:
+        """Seed DB from config watched_folders and refresh the folder list.
+
+        Called on startup and whenever Options saves new watched folders.
+        """
+        try:
             c = cfg.load()
             for path in c.get("watched_folders", []):
                 if Path(path).is_dir():
@@ -493,8 +603,8 @@ class FoldersView(QWidget):
 
     def _load_folders(self) -> None:
         current_id = self._current_folder_id
-        self._folder_list.blockSignals(True)
-        self._folder_list.clear()
+        self._folder_tree.blockSignals(True)
+        self._folder_tree.clear()
         try:
             with session() as s:
                 folders = s.query(Folder).order_by(Folder.added_at).all()
@@ -503,28 +613,51 @@ class FoldersView(QWidget):
                     for f in folders
                 ]
         except Exception:
-            self._folder_list.blockSignals(False)
+            self._folder_tree.blockSignals(False)
             return
 
         show_tt = cfg.load().get("show_folder_tooltip", True)
-        restore_idx = -1
-        for i, (folder_id, path, count) in enumerate(folder_data):
+
+        # Sort shortest path first so parents are created before children.
+        folder_data_sorted = sorted(folder_data, key=lambda x: len(x[1]))
+        path_to_item: dict[str, QTreeWidgetItem] = {}
+        restore_item: QTreeWidgetItem | None = None
+
+        for folder_id, path, count in folder_data_sorted:
             row = _FolderRow(path, count, show_tooltip=show_tt)
-            item = QListWidgetItem()
-            item.setData(Qt.ItemDataRole.UserRole, folder_id)
-            item.setData(Qt.ItemDataRole.UserRole + 1, path)
-            item.setSizeHint(row.sizeHint())
-            self._folder_list.addItem(item)
-            self._folder_list.setItemWidget(item, row)
+
+            # Find the nearest registered ancestor (longest matching prefix).
+            parent_item: QTreeWidgetItem | None = None
+            best_len = 0
+            p = Path(path)
+            for reg_path, reg_item in path_to_item.items():
+                try:
+                    p.relative_to(Path(reg_path))
+                    if len(reg_path) > best_len:
+                        best_len = len(reg_path)
+                        parent_item = reg_item
+                except ValueError:
+                    pass
+
+            if parent_item is not None:
+                item = QTreeWidgetItem(parent_item)
+            else:
+                item = QTreeWidgetItem(self._folder_tree)
+
+            item.setData(0, Qt.ItemDataRole.UserRole, folder_id)
+            item.setData(0, Qt.ItemDataRole.UserRole + 1, path)
+            item.setSizeHint(0, row.sizeHint())
+            self._folder_tree.setItemWidget(item, 0, row)
+            path_to_item[path] = item
+
             if folder_id == current_id:
-                restore_idx = i
+                restore_item = item
 
-        self._folder_list.blockSignals(False)
+        self._folder_tree.expandAll()
+        self._folder_tree.blockSignals(False)
 
-        if restore_idx >= 0:
-            self._folder_list.setCurrentRow(restore_idx)
-        elif self._folder_list.count() > 0 and current_id is None:
-            pass  # don't auto-select
+        if restore_item is not None:
+            self._folder_tree.setCurrentItem(restore_item)
 
     def _on_folder_changed(self, current, _prev) -> None:
         if current is None:
@@ -536,9 +669,9 @@ class FoldersView(QWidget):
             self._content_stack.setCurrentIndex(0)
             return
 
-        folder_id = current.data(Qt.ItemDataRole.UserRole)
+        folder_id = current.data(0, Qt.ItemDataRole.UserRole)
         self._current_folder_id = folder_id
-        self._content_stack.setCurrentIndex(1)
+        self._content_stack.setCurrentIndex(2 if self._active_view == "table" else 1)
         self._load_tiles(folder_id)
 
     def _load_tiles(self, folder_id: int) -> None:
@@ -623,6 +756,7 @@ class FoldersView(QWidget):
             tile.open_folder_requested.connect(self._open_in_explorer)
             self._tiles[info.skill_id] = tile
         self._reorder_tiles()
+        self._table_view.populate(self._sorted_infos())
 
         self._apply_filter()
         self._update_count_label(infos)
@@ -648,6 +782,8 @@ class FoldersView(QWidget):
 
     def _clear_tiles(self) -> None:
         self._tiles.clear()
+        self._tile_infos = []
+        self._table_view.clear()
         flow = self._tile_container.flow
         while flow.count():
             item = flow.takeAt(0)
@@ -676,27 +812,55 @@ class FoldersView(QWidget):
         path = QFileDialog.getExistingDirectory(self, "Select folder to watch")
         if not path:
             return
+
+        root = Path(path)
+
+        def _has_any_skill(d: Path) -> bool:
+            try:
+                return any(
+                    detect_type(f) != SpecType.UNKNOWN
+                    for f in d.rglob("*")
+                    if f.is_file()
+                )
+            except PermissionError:
+                return False
+
+        # Always register the selected folder itself, plus any immediate
+        # subdirectories that contain skill content — giving a two-level tree.
+        candidates: list[Path] = [root]
         try:
-            folder_id = get_or_create_folder(path, watch_enabled=True)
-        except Exception:
-            return
+            for sub in sorted(root.iterdir()):
+                if sub.is_dir() and _has_any_skill(sub):
+                    candidates.append(sub)
+        except PermissionError:
+            pass
+
+        registered: list[tuple[int, str]] = []
+        for candidate in candidates:
+            try:
+                fid = get_or_create_folder(str(candidate), watch_enabled=True)
+                registered.append((fid, str(candidate)))
+            except Exception:
+                pass
+
         self._load_folders()
-        self._run_discovery(folder_id, path, lambda _r: self._load_folders())
+        for fid, fpath in registered:
+            self._run_discovery(fid, fpath, lambda _r: self._load_folders())
 
     def _folder_context_menu(self, pos) -> None:
-        item = self._folder_list.itemAt(pos)
+        item = self._folder_tree.itemAt(pos)
         if item is None:
             return
-        folder_id = item.data(Qt.ItemDataRole.UserRole)
-        folder_path = item.data(Qt.ItemDataRole.UserRole + 1)
+        folder_id = item.data(0, Qt.ItemDataRole.UserRole)
+        folder_path = item.data(0, Qt.ItemDataRole.UserRole + 1)
 
         menu = QMenu(self)
         menu.setStyleSheet(
-            f"QMenu{{background:{DEEP_SURFACE};color:{LIGHT_CANVAS};"
-            f"border:1px solid {DIVIDER};border-radius:6px;padding:4px;}}"
+            f"QMenu{{background:{SYS_BG_SECONDARY};color:{SYS_TXT_PRIMARY};"
+            f"border:1px solid {SYS_STROKE_DIVIDER};border-radius:6px;padding:4px;}}"
             f"QMenu::item{{padding:5px 20px;border-radius:4px;}}"
-            f"QMenu::item:selected{{background:{ACCENT};}}"
-            f"QMenu::separator{{height:1px;background:{DIVIDER};margin:2px 8px;}}"
+            f"QMenu::item:selected{{background:{SYS_ACTION_PRIMARY};}}"
+            f"QMenu::separator{{height:1px;background:{SYS_STROKE_DIVIDER};margin:2px 8px;}}"
         )
         menu.addAction("Scan All").triggered.connect(
             lambda: self._scan_folder(folder_id)
@@ -712,7 +876,7 @@ class FoldersView(QWidget):
         menu.addAction("Remove Folder").triggered.connect(
             lambda: self._remove_folder(folder_id)
         )
-        menu.exec(self._folder_list.mapToGlobal(pos))
+        menu.exec(self._folder_tree.mapToGlobal(pos))
 
     def _remove_folder(self, folder_id: int) -> None:
         try:
@@ -756,10 +920,23 @@ class FoldersView(QWidget):
             with session() as s:
                 skills = (
                     s.query(Skill)
-                    .filter_by(folder_id=folder_id, spec_type="skill")
+                    .filter(
+                        Skill.folder_id == folder_id,
+                        Skill.spec_type.in_(["skill", "mcp", "a2a"]),
+                    )
                     .all()
                 )
-                batch = [(sk.id, str(Path(sk.path).parent)) for sk in skills]
+                batch = [
+                    (
+                        sk.id,
+                        (
+                            str(Path(sk.path).parent)
+                            if sk.spec_type == "skill"
+                            else sk.path
+                        ),
+                    )
+                    for sk in skills
+                ]
         except Exception:
             return
         if not batch:
@@ -842,7 +1019,7 @@ class FoldersView(QWidget):
 
         self._scan_next()
 
-    def _on_scan_error(self, skill_id: int, _msg: str) -> None:
+    def _on_scan_error(self, skill_id: int, msg: str) -> None:
         self._active_job = None
         self._scan_done += 1
         if skill_id in self._tiles:
@@ -852,6 +1029,8 @@ class FoldersView(QWidget):
                 last_scanned=datetime.now(timezone.utc),
                 trusted=False,
             )
+        if msg:
+            self._scan_progress_lbl.setText(f"Error: {msg}")
         self._scan_next()
 
     # ── Trust management ──────────────────────────────────────────────────────

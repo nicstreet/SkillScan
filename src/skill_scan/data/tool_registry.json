@@ -1,0 +1,400 @@
+[
+  {
+    "id": "claude-desktop",
+    "name": "Claude Desktop",
+    "vendor": "Anthropic",
+    "formats": ["skill", "mcp"],
+    "install_hints": [
+      "%USERPROFILE%\\.claude",
+      "%LOCALAPPDATA%\\AnthropicClaude",
+      "%APPDATA%\\Claude"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.claude\\skills\\"],
+      "mcp":   ["%APPDATA%\\Claude\\claude_desktop_config.json"]
+    },
+    "source_url": "https://claude.ai/download"
+  },
+  {
+    "id": "claude-code",
+    "name": "Claude Code",
+    "vendor": "Anthropic",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.claude\\skills\\"],
+      "mcp":   ["%USERPROFILE%\\.claude\\config.json"],
+      "a2a":   ["%USERPROFILE%\\.claude\\config.json"]
+    },
+    "source_url": "https://docs.anthropic.com/en/docs/agents-and-tools/claude-code"
+  },
+  {
+    "id": "cursor",
+    "name": "Cursor",
+    "vendor": "Anysphere",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Local\\Programs\\cursor"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.cursor", "%USERPROFILE%\\AppData\\Roaming\\Cursor"],
+      "mcp":   ["%USERPROFILE%\\AppData\\Roaming\\Cursor\\User\\globalStorage\\saoudrizwan.claude-dev\\settings\\mcp_config.json"],
+      "a2a":   []
+    },
+    "source_url": "https://cursor.com"
+  },
+  {
+    "id": "windsurf",
+    "name": "Windsurf",
+    "vendor": "Codeium",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Local\\Programs\\Windsurf"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.codeium\\windsurf"],
+      "mcp":   ["%USERPROFILE%\\.codeium\\windsurf\\mcp_config.json"],
+      "a2a":   []
+    },
+    "source_url": "https://codeium.com/windsurf"
+  },
+  {
+    "id": "vscode-copilot",
+    "name": "VS Code + GitHub Copilot",
+    "vendor": "Microsoft",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Local\\Programs\\Microsoft VS Code"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.vscode\\extensions"],
+      "mcp":   ["%USERPROFILE%\\AppData\\Roaming\\Code\\User\\globalStorage\\"],
+      "a2a":   []
+    },
+    "source_url": "https://code.visualstudio.com"
+  },
+  {
+    "id": "cline",
+    "name": "Cline",
+    "vendor": "Cline Open Source",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\.vscode\\extensions\\saoudrizwan.claude-dev-*"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\AppData\\Roaming\\Code\\User\\globalStorage\\saoudrizwan.claude-dev"],
+      "mcp":   ["%USERPROFILE%\\AppData\\Roaming\\Code\\User\\globalStorage\\saoudrizwan.claude-dev\\settings\\mcp_config.json"],
+      "a2a":   []
+    },
+    "source_url": "https://github.com/cline/cline"
+  },
+  {
+    "id": "roocode",
+    "name": "RooCode",
+    "vendor": "RooCode Open Source",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\.vscode\\extensions\\roocode.*"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\AppData\\Roaming\\Code\\User\\globalStorage\\roocode"],
+      "mcp":   ["%USERPROFILE%\\AppData\\Roaming\\Code\\User\\globalStorage\\roocode\\settings\\mcp_config.json"],
+      "a2a":   []
+    },
+    "source_url": "https://github.com/RooCode/RooCode"
+  },
+  {
+    "id": "aider",
+    "name": "Aider",
+    "vendor": "Aider Chat",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\aider.exe",
+      "%USERPROFILE%\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\aider.exe",
+      "%USERPROFILE%\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\aider.exe"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.aider\\"],
+      "mcp":   ["%USERPROFILE%\\.aider\\"],
+      "a2a":   []
+    },
+    "source_url": "https://aider.chat"
+  },
+  {
+    "id": "jetbrains-ai",
+    "name": "JetBrains AI Assistant",
+    "vendor": "JetBrains",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Roaming\\JetBrains"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\AppData\\Roaming\\JetBrains\\"],
+      "mcp":   ["%USERPROFILE%\\AppData\\Roaming\\JetBrains\\plugins"],
+      "a2a":   []
+    },
+    "source_url": "https://www.jetbrains.com/ai/"
+  },
+  {
+    "id": "continue",
+    "name": "Continue",
+    "vendor": "Continue Dev",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\.continue"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.continue"],
+      "mcp":   ["%USERPROFILE%\\.continue\\config.json"],
+      "a2a":   []
+    },
+    "source_url": "https://www.continue.dev"
+  },
+  {
+    "id": "warp",
+    "name": "Warp",
+    "vendor": "Warp Terminals",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Local\\Warp"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.warp"],
+      "mcp":   ["%USERPROFILE%\\.warp"],
+      "a2a":   ["%USERPROFILE%\\.warp\\warp_drive"]
+    },
+    "source_url": "https://www.warp.dev"
+  },
+  {
+    "id": "devin-desktop",
+    "name": "Devin Desktop",
+    "vendor": "Cognition AI",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Local\\Programs\\DevinDesktop"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.devin"],
+      "mcp":   ["%USERPROFILE%\\.devin\\mcp_config.json"],
+      "a2a":   []
+    },
+    "source_url": "https://cognition.ai"
+  },
+  {
+    "id": "visual-studio-copilot",
+    "name": "Visual Studio (Enterprise / Community)",
+    "vendor": "Microsoft",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE",
+      "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\IDE",
+      "C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional\\Common7\\IDE"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\AppData\\Local\\Microsoft\\VisualStudio"],
+      "mcp":   ["%USERPROFILE%\\AppData\\Local\\Microsoft\\VisualStudio"],
+      "a2a":   []
+    },
+    "source_url": "https://visualstudio.microsoft.com"
+  },
+  {
+    "id": "replit-agent",
+    "name": "Replit Agent",
+    "vendor": "Replit",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Local\\Programs\\Replit",
+      "%USERPROFILE%\\.replit_config"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.replit_config"],
+      "mcp":   ["%USERPROFILE%\\.replit_config"],
+      "a2a":   []
+    },
+    "source_url": "https://replit.com"
+  },
+  {
+    "id": "cody",
+    "name": "Cody (Sourcegraph)",
+    "vendor": "Sourcegraph",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Roaming\\Cody"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\AppData\\Roaming\\Cody"],
+      "mcp":   ["%USERPROFILE%\\AppData\\Roaming\\Cody"],
+      "a2a":   []
+    },
+    "source_url": "https://sourcegraph.com/cody"
+  },
+  {
+    "id": "tabnine",
+    "name": "Tabnine",
+    "vendor": "Tabnine",
+    "formats": ["skill", "mcp"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Roaming\\Tabnine\\models"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\AppData\\Roaming\\Tabnine"],
+      "mcp":   ["%USERPROFILE%\\AppData\\Roaming\\Tabnine"]
+    },
+    "source_url": "https://www.tabnine.com"
+  },
+  {
+    "id": "double-bot",
+    "name": "Double.bot",
+    "vendor": "Double Bot",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\.double"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.double"],
+      "mcp":   ["%USERPROFILE%\\.double"],
+      "a2a":   []
+    },
+    "source_url": "https://www.double.bot"
+  },
+  {
+    "id": "codeium",
+    "name": "Codeium (Standalone)",
+    "vendor": "Codeium",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\.codeium\\bin"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.codeium"],
+      "mcp":   ["%USERPROFILE%\\.codeium"],
+      "a2a":   []
+    },
+    "source_url": "https://codeium.com"
+  },
+  {
+    "id": "supermaven",
+    "name": "Supermaven",
+    "vendor": "Supermaven",
+    "formats": ["skill", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Local\\supermaven"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.supermaven"],
+      "a2a":   []
+    },
+    "source_url": "https://supermaven.com"
+  },
+  {
+    "id": "gemini-cli",
+    "name": "Gemini CLI",
+    "vendor": "Google",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Roaming\\npm\\node_modules\\@google\\gemini-cli",
+      "%USERPROFILE%\\.config\\gemini-cli"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.config\\gemini-cli"],
+      "mcp":   ["%USERPROFILE%\\.config\\gemini-cli\\mcp.json"],
+      "a2a":   []
+    },
+    "source_url": "https://ai.google.dev"
+  },
+  {
+    "id": "augment-code",
+    "name": "Augment Code",
+    "vendor": "Augment Code",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\.augment"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.augment"],
+      "mcp":   ["%USERPROFILE%\\.augment"],
+      "a2a":   []
+    },
+    "source_url": "https://www.augmentcode.com"
+  },
+  {
+    "id": "openai-codex-cli",
+    "name": "OpenAI Codex CLI",
+    "vendor": "OpenAI",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Local\\Programs\\OpenAI-Codex",
+      "%USERPROFILE%\\.openai-codex\\"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.openai-codex\\"],
+      "mcp":   ["%USERPROFILE%\\.openai-codex\\mcp_servers.json"],
+      "a2a":   []
+    },
+    "source_url": "https://platform.openai.com"
+  },
+  {
+    "id": "trae",
+    "name": "Trae IDE",
+    "vendor": "ByteDance",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Local\\Programs\\Trae"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.trae", "%USERPROFILE%\\AppData\\Roaming\\Trae"],
+      "mcp":   ["%USERPROFILE%\\AppData\\Roaming\\Trae\\User\\globalStorage\\mcp\\config.json"],
+      "a2a":   []
+    },
+    "source_url": "https://trae.ai"
+  },
+  {
+    "id": "zed",
+    "name": "Zed (Agent Mode)",
+    "vendor": "Zed Industries",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\AppData\\Local\\Programs\\Zed",
+      "%USERPROFILE%\\.config\\zed"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.config\\zed"],
+      "mcp":   ["%USERPROFILE%\\.config\\zed\\settings.json"],
+      "a2a":   []
+    },
+    "source_url": "https://zed.dev"
+  },
+  {
+    "id": "google-antigravity",
+    "name": "Google Antigravity / AI Studio",
+    "vendor": "Google",
+    "status": "unverified",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\.config\\google-antigravity"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\.config\\google-antigravity"],
+      "mcp":   ["%USERPROFILE%\\.config\\google-antigravity\\mcp_config.json"],
+      "a2a":   []
+    },
+    "source_url": "https://aistudio.google.com"
+  },
+  {
+    "id": "kilo-code",
+    "name": "Kilo Code",
+    "vendor": "Kilo Code Open Source",
+    "formats": ["skill", "mcp", "a2a"],
+    "install_hints": [
+      "%USERPROFILE%\\.vscode\\extensions\\kilocode-*"
+    ],
+    "watch_paths": {
+      "skill": ["%USERPROFILE%\\AppData\\Roaming\\KiloCode"],
+      "mcp":   ["%USERPROFILE%\\AppData\\Roaming\\KiloCode\\mcp\\config.json"],
+      "a2a":   []
+    },
+    "source_url": "https://github.com/kilocode/kilo"
+  }
+]

@@ -1,4 +1,8 @@
-"""Wraps the skill-scanner CLI via QProcess, streaming output live."""
+"""Wraps skill-scanner and mcp-scanner CLIs via QProcess, streaming output live.
+
+Routing: MCP manifests (router.SpecType.MCP_MANIFEST) are dispatched to
+`mcp-scanner static --tools <path>`.  All other types use `skill-scanner scan`.
+"""
 
 import json
 import shutil
@@ -7,10 +11,73 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from .router import SpecType, detect_type
+
 from PyQt6.QtCore import QObject, QProcess, QTimer, pyqtSignal
 
-from .config import load as load_cfg
+from .config import get_llm_creds, load as load_cfg
 from .result_store import ScanResult, add as store_result
+
+_MCP_SEV_RANK: dict[str, int] = {
+    "CRITICAL": 4,
+    "HIGH": 3,
+    "MEDIUM": 2,
+    "LOW": 1,
+    "SAFE": 0,
+    "INFO": 0,
+}
+_MCP_SEV_MAP: dict[int, str] = {
+    4: "critical",
+    3: "high",
+    2: "medium",
+    1: "low",
+    0: "clean",
+}
+
+
+def _normalize_mcp_result(raw: dict) -> dict:
+    """Convert mcp-scanner output to the standard SkillScan findings format.
+
+    mcp-scanner returns per-tool scan_results with nested analyzer dicts.
+    This flattens them to the same {is_safe, max_severity, findings, analyzers_used}
+    shape that skill-scanner produces and that the rest of the UI expects.
+    """
+    scan_results = raw.get("scan_results") or []
+    findings: list[dict] = []
+    max_rank = 0
+
+    for sr in scan_results:
+        tool_name = sr.get("tool_name") or ""
+        tool_desc = sr.get("tool_description") or ""
+        for analyzer_key, adata in (sr.get("findings") or {}).items():
+            sev_str = (adata.get("severity") or "INFO").upper()
+            rank = _MCP_SEV_RANK.get(sev_str, 0)
+            if rank > max_rank:
+                max_rank = rank
+            taxonomies = adata.get("mcp_taxonomies") or []
+            for threat in adata.get("threat_names") or []:
+                tx = taxonomies[0] if taxonomies else {}
+                findings.append(
+                    {
+                        "severity": sev_str,
+                        "category": tx.get("scanner_category") or threat,
+                        "title": f"{tool_name}: {threat}",
+                        "description": tool_desc,
+                        "remediation": tx.get("description") or "",
+                        "analyzer": analyzer_key.replace("_analyzer", ""),
+                        "rule_id": threat.replace(" ", "_"),
+                    }
+                )
+
+    is_safe = len(findings) == 0
+    return {
+        "is_safe": is_safe,
+        "max_severity": _MCP_SEV_MAP.get(max_rank, "clean"),
+        "findings": findings,
+        "findings_count": len(findings),
+        "analyzers_used": raw.get("requested_analyzers") or [],
+        "scan_duration_seconds": 0,
+    }
 
 
 def _extract_json(text: str) -> list | dict | None:
@@ -52,6 +119,7 @@ class ScanJob(QObject):
         super().__init__(parent)
         self._path = path
         self._cfg = cfg or load_cfg()
+        self._spec_type = detect_type(Path(path))
         self._process = QProcess(self)
         self._stdout_buf = ""
         self._stderr_buf = ""
@@ -73,7 +141,25 @@ class ScanJob(QObject):
                 return str(candidate)
         return shutil.which("skill-scanner")
 
+    @staticmethod
+    def _find_mcp_scanner() -> str | None:
+        """Prefer the exe next to the running Python (venv Scripts), fall back to PATH."""
+        import sys
+
+        scripts_dir = Path(sys.executable).parent
+        for name in ("mcp-scanner.exe", "mcp-scanner"):
+            candidate = scripts_dir / name
+            if candidate.exists():
+                return str(candidate)
+        return shutil.which("mcp-scanner")
+
     def start(self) -> None:
+        if self._spec_type == SpecType.MCP_MANIFEST:
+            self._start_mcp()
+        else:
+            self._start_skill()
+
+    def _start_skill(self) -> None:
         exe = self._find_skill_scanner()
         if exe is None:
             self.error.emit(
@@ -81,10 +167,18 @@ class ScanJob(QObject):
                 "Run: pip install cisco-ai-skill-scanner[all]"
             )
             return
+        self._launch(exe, self._build_args(), self._build_env())
 
-        args = self._build_args()
-        env = self._build_env()
+    def _start_mcp(self) -> None:
+        exe = self._find_mcp_scanner()
+        if exe is None:
+            self.error.emit(
+                "mcp-scanner not found.\n" "Run: pip install cisco-ai-mcp-scanner"
+            )
+            return
+        self._launch(exe, self._build_mcp_args(), self._build_mcp_env())
 
+    def _launch(self, exe: str, args: list[str], env: dict[str, str]) -> None:
         from PyQt6.QtCore import QProcessEnvironment
 
         pe = QProcessEnvironment.systemEnvironment()
@@ -94,9 +188,7 @@ class ScanJob(QObject):
 
         self._process.start(exe, args)
         if not self._process.waitForStarted(3000):
-            self.error.emit(
-                f"Failed to start skill-scanner: {self._process.errorString()}"
-            )
+            self.error.emit(f"Failed to start scanner: {self._process.errorString()}")
 
     def cancel(self) -> None:
         if self._process.state() != QProcess.ProcessState.NotRunning:
@@ -129,18 +221,60 @@ class ScanJob(QObject):
 
     def _build_env(self) -> dict[str, str]:
         c = self._cfg
+        creds = get_llm_creds(c, "scanner")
         env: dict[str, str] = {}
-        if c.get("llm_api_key"):
-            env["SKILL_SCANNER_LLM_API_KEY"] = c["llm_api_key"]
-        if c.get("llm_model"):
-            env["SKILL_SCANNER_LLM_MODEL"] = c["llm_model"]
-        provider = c.get("llm_provider", "")
-        if provider:
-            env["SKILL_SCANNER_LLM_PROVIDER"] = provider
+        env["SKILL_SCANNER_LLM_API_KEY"] = creds["api_key"] or "local"
+        if creds["model"]:
+            env["SKILL_SCANNER_LLM_MODEL"] = creds["model"]
+        if creds["provider"]:
+            env["SKILL_SCANNER_LLM_PROVIDER"] = creds["provider"]
+        if creds["base_url"]:
+            env["SKILL_SCANNER_LLM_BASE_URL"] = creds["base_url"]
+            env["OPENAI_API_BASE"] = creds["base_url"]
         if c.get("virustotal_api_key"):
             env["VIRUSTOTAL_API_KEY"] = c["virustotal_api_key"]
         if c.get("ai_defense_api_key"):
             env["AI_DEFENSE_API_KEY"] = c["ai_defense_api_key"]
+        return env
+
+    def _build_mcp_args(self) -> list[str]:
+        c = self._cfg
+        analyzers = ["yara"]  # always included — offline, no key required
+        if c.get("mcp_use_llm") and (
+            get_llm_creds(c, "scanner")["api_key"]
+            or get_llm_creds(c, "scanner")["is_local"]
+        ):
+            analyzers.append("llm")
+        if c.get("mcp_use_api") and c.get("mcp_api_key"):
+            analyzers.append("api")
+        if c.get("use_virustotal") and c.get("virustotal_api_key"):
+            analyzers.append("virustotal")
+        return [
+            "--analyzers",
+            ",".join(analyzers),
+            "--format",
+            "raw",
+            "static",
+            "--tools",
+            self._path,
+        ]
+
+    def _build_mcp_env(self) -> dict[str, str]:
+        c = self._cfg
+        creds = get_llm_creds(c, "scanner")
+        env: dict[str, str] = {}
+        env["MCP_SCANNER_LLM_API_KEY"] = creds["api_key"] or "local"
+        if creds["model"]:
+            env["MCP_SCANNER_LLM_MODEL"] = creds["model"]
+        if creds["provider"]:
+            env["MCP_SCANNER_LLM_PROVIDER"] = creds["provider"]
+        if creds["base_url"]:
+            env["MCP_SCANNER_LLM_BASE_URL"] = creds["base_url"]
+            env["OPENAI_API_BASE"] = creds["base_url"]
+        if c.get("mcp_api_key"):
+            env["MCP_SCANNER_API_KEY"] = c["mcp_api_key"]
+        if c.get("virustotal_api_key"):
+            env["VIRUSTOTAL_API_KEY"] = c["virustotal_api_key"]
         return env
 
     # ------------------------------------------------------------------
@@ -185,13 +319,19 @@ class ScanJob(QObject):
             for line in remaining_err.splitlines():
                 self.output_line.emit(f"[stderr] {line}")
 
+        raw_parsed = _extract_json(self._stdout_buf)
+        if self._spec_type == SpecType.MCP_MANIFEST and isinstance(raw_parsed, dict):
+            parsed = _normalize_mcp_result(raw_parsed)
+        else:
+            parsed = raw_parsed
+
         result = ScanResult(
             path=self._path,
             timestamp=datetime.now().isoformat(timespec="seconds"),
             returncode=self._exit_code,
             stdout=self._stdout_buf,
             stderr=self._stderr_buf,
-            parsed=_extract_json(self._stdout_buf),
+            parsed=parsed,
         )
         store_result(result)
         self.finished.emit(result)

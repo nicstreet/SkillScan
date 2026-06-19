@@ -57,6 +57,17 @@ class ScanResult:
         return "unknown"
 
     @property
+    def llm_skipped(self) -> bool:
+        """True when the scanner's own LLM evaluation step did not run."""
+        if not isinstance(self.parsed, dict):
+            return False
+        return any(
+            f.get("rule_id") == "LLM_ANALYSIS_FAILED"
+            for f in self.parsed.get("findings", [])
+            if isinstance(f, dict)
+        )
+
+    @property
     def short_path(self) -> str:
         p = Path(self.path)
         return p.name if p.name else self.path

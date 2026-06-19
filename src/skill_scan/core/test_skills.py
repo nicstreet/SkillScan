@@ -2,7 +2,6 @@
 
 import io
 import json
-import os
 import shutil
 import subprocess
 import urllib.request
@@ -12,36 +11,48 @@ from pathlib import Path
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
-_APPDATA = Path(os.environ.get("APPDATA", "~"))
-TEST_SKILLS_DIR = _APPDATA / "SkillScan" / "test_skills"
-
-# Bundled MCP manifest eval fixtures (ships with the package in skills/mcp-evals/)
-MCP_EVALS_DIR = Path(__file__).parent.parent.parent / "skills" / "mcp-evals"
+# All eval fixtures live under the project's evals/ directory
+_PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+SKILL_EVALS_DIR = _PROJECT_ROOT / "evals" / "skills"
+MCP_EVALS_DIR = _PROJECT_ROOT / "evals" / "mcp"
 
 _ZIP_URL = (
     "https://github.com/cisco-ai-defense/skill-scanner/archive/refs/heads/main.zip"
 )
 _INNER_PREFIX = "skill-scanner-main/evals/skills/"
 
+_MCP_ZIP_URL = (
+    "https://github.com/cisco-ai-defense/mcp-scanner/archive/refs/heads/main.zip"
+)
+_MCP_INNER_PREFIX = "mcp-scanner-main/evals/"
+
 
 def is_downloaded() -> bool:
-    return TEST_SKILLS_DIR.exists() and any(TEST_SKILLS_DIR.iterdir())
+    return SKILL_EVALS_DIR.exists() and any(SKILL_EVALS_DIR.iterdir())
 
 
 def skill_count() -> int:
-    if not is_downloaded():
+    if not SKILL_EVALS_DIR.exists():
         return 0
-    return sum(1 for p in TEST_SKILLS_DIR.iterdir() if p.is_dir())
+    return sum(1 for p in SKILL_EVALS_DIR.iterdir() if p.is_dir())
 
 
 def open_folder() -> None:
-    subprocess.Popen(["explorer", str(TEST_SKILLS_DIR)])
+    subprocess.Popen(["explorer", str(SKILL_EVALS_DIR)])
 
 
 def open_guide() -> None:
-    guide = TEST_SKILLS_DIR / "GUIDE.md"
+    guide = SKILL_EVALS_DIR / "GUIDE.md"
     if guide.exists():
         subprocess.Popen(["notepad.exe", str(guide)])
+
+
+def skill_eval_count() -> int:
+    return skill_count()
+
+
+def open_skill_evals_folder() -> None:
+    subprocess.Popen(["explorer", str(SKILL_EVALS_DIR)])
 
 
 # ── MCP eval fixtures ────────────────────────────────────────────────────────
@@ -115,9 +126,9 @@ class DownloadThread(QThread):
                 data = resp.read()
 
             self.progress.emit("Extracting eval skills…")
-            if TEST_SKILLS_DIR.exists():
-                shutil.rmtree(TEST_SKILLS_DIR)
-            TEST_SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+            if SKILL_EVALS_DIR.exists():
+                shutil.rmtree(SKILL_EVALS_DIR)
+            SKILL_EVALS_DIR.mkdir(parents=True, exist_ok=True)
 
             with zipfile.ZipFile(io.BytesIO(data)) as zf:
                 skill_files = [
@@ -129,7 +140,7 @@ class DownloadThread(QThread):
                     rel = name[len(_INNER_PREFIX) :]
                     if not rel:
                         continue
-                    dest = TEST_SKILLS_DIR / rel
+                    dest = SKILL_EVALS_DIR / rel
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     dest.write_bytes(zf.read(name))
 
@@ -142,8 +153,50 @@ class DownloadThread(QThread):
             self.finished.emit(False, str(exc))
 
 
+class DownloadMcpThread(QThread):
+    progress = pyqtSignal(str)
+    finished = pyqtSignal(bool, str)  # success, message
+
+    def run(self):
+        try:
+            self.progress.emit("Connecting to GitHub…")
+            req = urllib.request.Request(
+                _MCP_ZIP_URL,
+                headers={"User-Agent": "SkillScan/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                self.progress.emit("Downloading archive…")
+                data = resp.read()
+
+            self.progress.emit("Extracting MCP eval manifests…")
+            if MCP_EVALS_DIR.exists():
+                shutil.rmtree(MCP_EVALS_DIR)
+            MCP_EVALS_DIR.mkdir(parents=True, exist_ok=True)
+
+            with zipfile.ZipFile(io.BytesIO(data)) as zf:
+                mcp_files = [
+                    n
+                    for n in zf.namelist()
+                    if n.startswith(_MCP_INNER_PREFIX) and not n.endswith("/")
+                ]
+                for name in mcp_files:
+                    rel = name[len(_MCP_INNER_PREFIX) :]
+                    if not rel:
+                        continue
+                    dest = MCP_EVALS_DIR / rel
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_bytes(zf.read(name))
+
+            count = mcp_eval_count()
+            self.finished.emit(
+                True, f"Downloaded {count} manifest{'s' if count != 1 else ''}."
+            )
+        except Exception as exc:
+            self.finished.emit(False, str(exc))
+
+
 def _write_guide() -> None:
-    (TEST_SKILLS_DIR / "GUIDE.md").write_text(_GUIDE_CONTENT, encoding="utf-8")
+    (SKILL_EVALS_DIR / "GUIDE.md").write_text(_GUIDE_CONTENT, encoding="utf-8")
 
 
 _GUIDE_CONTENT = """\
@@ -294,7 +347,7 @@ Check Action Centre (Win+A) for queued messages.
 
 **Tests:** router type detection for MCP manifests
 
-Four sample MCP manifest JSON files ship bundled with SkillScan in `skills/mcp-evals/`.
+Four sample MCP manifest JSON files ship bundled with SkillScan in `evals/mcp/`.
 These test that the scanner correctly identifies and labels MCP server definitions.
 
 Each subfolder contains a `mcp.json` manifest and an `_expected.json` ground-truth file:

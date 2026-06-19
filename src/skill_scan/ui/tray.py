@@ -90,6 +90,7 @@ class TrayApp:
         self._clipboard_watcher.scan_requested.connect(self._on_clipboard_content)
         self._apply_clipboard_watcher()
 
+        self._active_dialogs: list = []
         self._pending_notifs: dict[str, QTimer] = {}
 
         self._tray = QSystemTrayIcon(
@@ -113,6 +114,15 @@ class TrayApp:
         self._apply_watched_folders()
         self._apply_clipboard_watcher()
         self._sync_toggle_state()
+
+    def close_all_dialogs(self) -> None:
+        """Close every open scan progress window (called when the main window hides)."""
+        for dlg in list(self._active_dialogs):
+            try:
+                dlg.close()
+            except RuntimeError:
+                pass
+        self._active_dialogs.clear()
 
     # ------------------------------------------------------------------
     def _build_menu(self):
@@ -283,14 +293,23 @@ class TrayApp:
     # ------------------------------------------------------------------
     def launch_scan(self, path: str, silent: bool = False):
         self._cfg = cfg.load()
+        suppress = self._cfg.get("suppress_scan_windows", False)
         job = ScanJob(path, self._cfg)
         self._active_jobs.append(job)
 
-        if silent:
+        if silent or suppress:
             job.finished.connect(lambda r, j=job: self._on_job_done(r, j, None))
             job.error.connect(lambda msg, j=job: self._on_job_error(msg, j, None))
         else:
             dlg = ScanProgressDialog(job, path)
+            self._active_dialogs.append(dlg)
+            dlg.finished.connect(
+                lambda _, d=dlg: (
+                    self._active_dialogs.remove(d)
+                    if d in self._active_dialogs
+                    else None
+                )
+            )
             job.finished.connect(lambda r, j=job, d=dlg: self._on_job_done(r, j, d))
             job.error.connect(lambda msg, j=job, d=dlg: self._on_job_error(msg, j, d))
             dlg.show()
@@ -322,12 +341,13 @@ class TrayApp:
 
     # ------------------------------------------------------------------
     def _on_watched_change(self, skill_path: str):
-        self._tray.showMessage(
-            "Auto-scanning",
-            f"Change detected in {Path(skill_path).name}",
-            QSystemTrayIcon.MessageIcon.Information,
-            2000,
-        )
+        if self._cfg.get("watched_folder_notify", True):
+            self._tray.showMessage(
+                "Auto-scanning",
+                f"Change detected in {Path(skill_path).name}",
+                QSystemTrayIcon.MessageIcon.Information,
+                2000,
+            )
         self.launch_scan(skill_path)
 
     def _apply_watched_folders(self):

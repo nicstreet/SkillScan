@@ -10,6 +10,9 @@ SQLAlchemy>=2.0
 # Core scanner CLI — static analysis, trigger detection, LLM analysis of SKILL.md / MCP / A2A files
 cisco-ai-skill-scanner[all]
 
+# MCP-specific scanner — YARA, LLM-as-judge, Cisco AI Defense analysis of MCP manifests
+cisco-ai-mcp-scanner
+
 # Audit against known vulnerability databases (PyPI Advisory Database, OSV)
 pip-audit==2.7.2
 

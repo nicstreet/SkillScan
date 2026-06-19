@@ -19,34 +19,39 @@ from PyQt6.QtWidgets import (
 )
 
 from .._palette import (
-    ACCENT,
-    CRITICAL_ACCENT,
-    CRITICAL_BG,
-    DEEP_SURFACE,
-    DIVIDER,
-    HIGH_ACCENT,
-    LIGHT_CANVAS,
-    MEDIUM_ACCENT,
-    MUTED_TEXT,
-    SAFE_ACCENT,
-    SOFT_SURFACE,
+    SYS_ACTION_PRIMARY,
+    SYS_BADGE_UNSAFE,
+    SYS_CRITICAL_BG,
+    SYS_BG_PRIMARY,
+    SYS_BG_SECONDARY,
+    SYS_BG_WARNING,
+    SYS_STROKE_DIVIDER,
+    SYS_BORDER_WARNING,
+    SYS_TXT_PRIMARY,
+    SYS_TXT_SECONDARY,
+    SYS_BORDER_ADVISORY,
+    SYS_TXT_MUTED,
+    SYS_BADGE_SAFE,
+    SYS_BORDER_LOW,
+    SYS_TILE_BG_UNSCANNED,
+    SYS_TILE_BG_HOVER,
 )
 
-TILE_H = 192  # fixed height; width is set responsively by FlowContainer
-_TILE_BG = "#475569"
-_TILE_BG_HV = "#3D4D5E"
-_SEC_TEXT = "#CBD5E1"
-_BADGE_BG = DEEP_SURFACE
+TILE_H = 140  # fixed height; width is set responsively by FlowContainer
+_TILE_BG = SYS_TILE_BG_UNSCANNED
+_TILE_BG_HV = SYS_TILE_BG_HOVER
+_SEC_TEXT = SYS_TXT_SECONDARY
+_BADGE_BG = SYS_BG_SECONDARY
 
 _SEVERITY_COLOUR: dict[Optional[str], str] = {
-    None: DIVIDER,
-    "clean": SAFE_ACCENT,
-    "safe": SAFE_ACCENT,
-    "low": SOFT_SURFACE,
-    "medium": MEDIUM_ACCENT,
-    "high": HIGH_ACCENT,
-    "critical": CRITICAL_ACCENT,
-    "unknown": MUTED_TEXT,
+    None: SYS_STROKE_DIVIDER,
+    "clean": SYS_BADGE_SAFE,
+    "safe": SYS_BADGE_SAFE,
+    "low": SYS_BORDER_LOW,
+    "medium": SYS_BORDER_ADVISORY,
+    "high": SYS_BORDER_WARNING,
+    "critical": SYS_BADGE_UNSAFE,
+    "unknown": SYS_TXT_MUTED,
 }
 
 _SEV_BADGE_TEXT = {
@@ -63,17 +68,20 @@ _TYPE_LABEL = {"skill": "SKILL", "mcp": "MCP", "a2a": "A2A", "unknown": "?"}
 
 _FIND_SEV_ORDER = ["critical", "high", "medium", "low", "info"]
 _FIND_SEV_COLOUR = {
-    "critical": CRITICAL_ACCENT,
-    "high": HIGH_ACCENT,
-    "medium": MEDIUM_ACCENT,
-    "low": SOFT_SURFACE,
-    "info": MUTED_TEXT,
-    "unknown": MUTED_TEXT,
+    "critical": SYS_BADGE_UNSAFE,
+    "high": SYS_BORDER_WARNING,
+    "medium": SYS_BORDER_ADVISORY,
+    "low": SYS_BORDER_LOW,
+    "info": SYS_TXT_MUTED,
+    "unknown": SYS_TXT_MUTED,
 }
 
 # Shared badge geometry — matches _BADGE_H in skill_detail_view for visual consistency
 _NB = (
-    "font-size:10px;font-weight:700;padding:3px 8px;"
+    "font-size:8px;font-weight:700;padding:1px;" "border-radius:4px;letter-spacing:1px;"
+)
+_NB_UNSAFE = (
+    "font-size:8px;font-weight:700;padding:1px 4px;"
     "border-radius:4px;letter-spacing:1px;"
 )
 
@@ -121,7 +129,7 @@ class SkillTile(QFrame):
         """Badge base style — 25% smaller in compact (medium) mode."""
         if self._compact:
             return (
-                "font-size:8px;font-weight:700;padding:2px 6px;"
+                "font-size:8px;font-weight:700;padding:1px 6px;"
                 "border-radius:3px;letter-spacing:1px;"
             )
         return _NB
@@ -136,113 +144,113 @@ class SkillTile(QFrame):
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.setContentsMargins(14, 12, 14, 12)
+        root.setContentsMargins(4, 2, 4, 4)
         root.setSpacing(0)
 
-        # ── Row 1: name (left) · type badge (right) ──────────────────────────
+        # ── Row 1: type badge (left) · name (right) ──────────────────────────
         row1 = QHBoxLayout()
         row1.setSpacing(8)
         row1.setContentsMargins(0, 0, 0, 0)
 
+        self._type_lbl = QLabel(_TYPE_LABEL.get(self._info.spec_type, "?"))
+        self._type_lbl.setStyleSheet(
+            f"{_NB}color:{SYS_TXT_PRIMARY};"
+            f"background:{SYS_ACTION_PRIMARY};border:1px solid {SYS_BG_PRIMARY};"
+        )
+        self._type_lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        row1.addWidget(self._type_lbl, 0, Qt.AlignmentFlag.AlignVCenter)
+
         self._name_lbl = QLabel(self._info.name)
         self._name_lbl.setStyleSheet(
-            f"color:{LIGHT_CANVAS};font-size:13px;font-weight:700;"
+            f"color:{SYS_TXT_PRIMARY};font-size:12px;font-weight:700;"
             f"background:transparent;border:none;"
         )
         self._name_lbl.setWordWrap(True)
-        row1.addWidget(self._name_lbl, 1, Qt.AlignmentFlag.AlignTop)
-
-        self._type_lbl = QLabel(_TYPE_LABEL.get(self._info.spec_type, "?"))
-        self._type_lbl.setStyleSheet(
-            f"{_NB}color:{_SEC_TEXT};"
-            f"background:{_BADGE_BG};border:1px solid #334155;"
+        self._name_lbl.setAlignment(
+            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
         )
-        self._type_lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        row1.addWidget(self._type_lbl, 0, Qt.AlignmentFlag.AlignTop)
+        row1.addWidget(self._name_lbl, 1, Qt.AlignmentFlag.AlignVCenter)
 
         root.addLayout(row1)
-        root.addSpacing(8)
+        root.addSpacing(4)
 
-        # ── Row 2: [results · analyzers] left | [unsafe · severity] right ────
-        meta_row = QHBoxLayout()
-        meta_row.setSpacing(0)
-        meta_row.setContentsMargins(0, 0, 0, 0)
-        meta_row.setAlignment(Qt.AlignmentFlag.AlignTop)
+        hdiv1 = QFrame()
+        hdiv1.setFrameShape(QFrame.Shape.HLine)
+        hdiv1.setFixedHeight(1)
+        hdiv1.setStyleSheet(f"background:{SYS_STROKE_DIVIDER};border:none;")
+        root.addWidget(hdiv1)
+        root.addSpacing(4)
 
-        left_col = QVBoxLayout()
-        left_col.setSpacing(8)
-        left_col.setContentsMargins(0, 0, 0, 0)
+        # ── Row 2: results · analyzers ──────────────────────────────────────
+        row2 = QHBoxLayout()
+        row2.setSpacing(4)
+        row2.setContentsMargins(0, 0, 0, 0)
 
         self._results_lbl = QLabel("—")
         self._results_lbl.setStyleSheet(
-            f"{_NB}color:{_SEC_TEXT};background:{_BADGE_BG};border:1px solid #334155;"
+            f"{_NB}color:{SYS_TXT_PRIMARY};background:{SYS_BG_SECONDARY};border:1px solid {SYS_BG_PRIMARY};"
         )
         self._results_lbl.setSizePolicy(
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
-        left_col.addWidget(self._results_lbl)
+        row2.addWidget(self._results_lbl)
 
         self._analyzers_lbl = QLabel("—")
         self._analyzers_lbl.setStyleSheet(
-            f"{_NB}color:{_SEC_TEXT};background:{_BADGE_BG};border:1px solid #334155;"
+            f"{_NB}color:{SYS_TXT_PRIMARY};background:{SYS_BG_SECONDARY};border:1px solid {SYS_BG_PRIMARY};"
         )
         self._analyzers_lbl.setSizePolicy(
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
-        left_col.addWidget(self._analyzers_lbl)
-        meta_row.addLayout(left_col)
+        row2.addWidget(self._analyzers_lbl)
+        row2.addStretch()
+        root.addLayout(row2)
+        root.addSpacing(4)
 
-        meta_row.addStretch()
-
-        right_col = QVBoxLayout()
-        right_col.setSpacing(8)
-        right_col.setContentsMargins(0, 0, 0, 0)
+        # ── Row 3: unsafe · severity ─────────────────────────────────────────
+        row3 = QHBoxLayout()
+        row3.setSpacing(6)
+        row3.setContentsMargins(0, 0, 0, 0)
 
         self._unsafe_lbl = QLabel("UNSAFE")
         self._unsafe_lbl.setStyleSheet(
-            f"{_NB}color:{CRITICAL_ACCENT};background:{CRITICAL_BG};"
-            f"border:1px solid {CRITICAL_ACCENT};"
+            f"{_NB_UNSAFE}color:{SYS_BADGE_UNSAFE};background:{SYS_CRITICAL_BG};"
+            f"border:1px solid {SYS_BADGE_UNSAFE};"
         )
         self._unsafe_lbl.setSizePolicy(
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
         )
         self._unsafe_lbl.setVisible(False)
-        right_col.addWidget(self._unsafe_lbl, 0, Qt.AlignmentFlag.AlignRight)
+        row3.addWidget(self._unsafe_lbl)
 
         self._sev_lbl = QLabel("")
         self._sev_lbl.setStyleSheet(
-            f"{_NB}color:{MUTED_TEXT};background:transparent;border:none;"
+            f"{_NB}color:{SYS_TXT_MUTED};background:transparent;border:none;"
         )
         self._sev_lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        right_col.addWidget(self._sev_lbl, 0, Qt.AlignmentFlag.AlignRight)
-        meta_row.addLayout(right_col)
+        row3.addWidget(self._sev_lbl)
+        row3.addStretch()
+        root.addLayout(row3)
+        root.addSpacing(4)
 
-        root.addLayout(meta_row)
-        root.addSpacing(8)
-
-        # ── Row 3: description ───────────────────────────────────────────────
+        # ── Row 4: description ───────────────────────────────────────────────
         self._desc_lbl = QLabel(self._info.description or "No description")
         self._desc_lbl.setStyleSheet(
-            f"color:{_SEC_TEXT};font-size:11px;background:transparent;"
+            f"color:{_SEC_TEXT};font-size:10px;background:transparent;"
             f"border:none;line-height:140%;"
         )
         self._desc_lbl.setWordWrap(True)
-        self._desc_lbl.setMaximumHeight(36)  # ~2 lines
+        self._desc_lbl.setMaximumHeight(48)
         root.addWidget(self._desc_lbl)
-        root.addSpacing(8)
+        root.addSpacing(4)
 
-        # ── Findings section: divider + severity columns ──────────────────────
+        # ── Row 5: findings severity row ─────────────────────────────────────
         self._findings_section = QWidget()
         self._findings_section.setStyleSheet("background:transparent;")
+        self._findings_section.setMaximumHeight(18)
         fs_layout = QVBoxLayout(self._findings_section)
         fs_layout.setContentsMargins(0, 0, 0, 0)
-        fs_layout.setSpacing(6)
-
-        hdiv = QFrame()
-        hdiv.setFrameShape(QFrame.Shape.HLine)
-        hdiv.setFixedHeight(1)
-        hdiv.setStyleSheet(f"background:{DIVIDER};border:none;")
-        fs_layout.addWidget(hdiv)
+        fs_layout.setSpacing(0)
 
         self._sev_row_lbl = QLabel()
         self._sev_row_lbl.setWordWrap(True)
@@ -253,7 +261,6 @@ class SkillTile(QFrame):
         fs_layout.addWidget(self._sev_row_lbl)
 
         self._findings_section.setVisible(False)
-        root.addStretch(1)
         root.addWidget(self._findings_section)
 
         self._refresh_labels()
@@ -265,15 +272,14 @@ class SkillTile(QFrame):
         sev_fs = "8px" if self._compact else "10px"
 
         # Apply badge styles (all scale with compact mode)
-        _badge_neutral = (
-            f"{nb}color:{_SEC_TEXT};background:{_BADGE_BG};border:1px solid #334155;"
-        )
+        _badge_neutral = f"{nb}color:{SYS_TXT_PRIMARY};background:{SYS_ACTION_PRIMARY};border:1px solid {SYS_BG_PRIMARY};"
+        _badge_data = f"{nb}color:{SYS_TXT_PRIMARY};background:{SYS_BG_SECONDARY};border:1px solid {SYS_BG_PRIMARY};"
         self._type_lbl.setStyleSheet(_badge_neutral)
-        self._results_lbl.setStyleSheet(_badge_neutral)
-        self._analyzers_lbl.setStyleSheet(_badge_neutral)
+        self._results_lbl.setStyleSheet(_badge_data)
+        self._analyzers_lbl.setStyleSheet(_badge_data)
         self._unsafe_lbl.setStyleSheet(
-            f"{nb}color:{CRITICAL_ACCENT};background:{CRITICAL_BG};"
-            f"border:1px solid {CRITICAL_ACCENT};"
+            f"{_NB_UNSAFE}color:{SYS_BADGE_UNSAFE};background:{SYS_CRITICAL_BG};"
+            f"border:1px solid {SYS_BADGE_UNSAFE};"
         )
         self._sev_row_lbl.setStyleSheet(
             f"background:transparent;border:none;font-size:{sev_fs};font-weight:700;"
@@ -281,7 +287,7 @@ class SkillTile(QFrame):
 
         sev = self._info.severity
         sev_lower = (sev or "").lower()
-        color = _SEVERITY_COLOUR.get(sev_lower, MUTED_TEXT)
+        color = _SEVERITY_COLOUR.get(sev_lower, SYS_TXT_MUTED)
 
         if sev is None:
             self._results_lbl.setText("—")
@@ -289,7 +295,7 @@ class SkillTile(QFrame):
             self._unsafe_lbl.setVisible(False)
             self._sev_lbl.setText("")
             self._sev_lbl.setStyleSheet(
-                f"{nb}color:{MUTED_TEXT};background:transparent;border:none;"
+                f"{nb}color:{SYS_TXT_MUTED};background:transparent;border:none;"
             )
             self._findings_section.setVisible(False)
         else:
@@ -305,13 +311,18 @@ class SkillTile(QFrame):
             badge_text = _SEV_BADGE_TEXT.get(sev_lower, sev_lower.upper())
             if sev_lower == "critical":
                 self._sev_lbl.setStyleSheet(
-                    f"{nb}color:{CRITICAL_ACCENT};background:{CRITICAL_BG};"
-                    f"border:1px solid {CRITICAL_ACCENT};"
+                    f"{nb}color:{SYS_BADGE_UNSAFE};background:{SYS_CRITICAL_BG};"
+                    f"border:1px solid {SYS_BADGE_UNSAFE};"
+                )
+            elif sev_lower == "high":
+                self._sev_lbl.setStyleSheet(
+                    f"{nb}color:{SYS_TXT_PRIMARY};background:{SYS_BORDER_WARNING};"
+                    f"border:1px solid {SYS_BG_PRIMARY};"
                 )
             elif sev_lower in ("clean", "safe"):
                 self._sev_lbl.setStyleSheet(
-                    f"{nb}color:{SAFE_ACCENT};background:transparent;"
-                    f"border:1px solid {SAFE_ACCENT};"
+                    f"{nb}color:{SYS_BADGE_SAFE};background:{SYS_BG_WARNING};"
+                    f"border:1px solid {SYS_BADGE_SAFE};"
                 )
             else:
                 self._sev_lbl.setStyleSheet(
@@ -335,14 +346,14 @@ class SkillTile(QFrame):
 
         _ORDER = ["critical", "high", "medium", "low"]
         _COLOURS = {
-            "critical": CRITICAL_ACCENT,
-            "high": HIGH_ACCENT,
-            "medium": MEDIUM_ACCENT,
-            "low": SOFT_SURFACE,
+            "critical": SYS_BADGE_UNSAFE,
+            "high": SYS_BORDER_WARNING,
+            "medium": SYS_BORDER_ADVISORY,
+            "low": SYS_BORDER_LOW,
         }
 
         parts = [
-            f'<span style="color:{_COLOURS.get(s, MUTED_TEXT)};">'
+            f'<span style="color:{_COLOURS.get(s, SYS_TXT_MUTED)};">'
             f"{s.upper()}({counts[s]})</span>"
             for s in _ORDER
             if s in counts
@@ -351,7 +362,7 @@ class SkillTile(QFrame):
             self._findings_section.setVisible(False)
             return
 
-        sep = f' <span style="color:{MUTED_TEXT};font-weight:400;">-</span> '
+        sep = f' <span style="color:{SYS_TXT_MUTED};font-weight:400;">-</span> '
         self._sev_row_lbl.setText(sep.join(parts))
         self._findings_section.setVisible(True)
 
@@ -359,16 +370,9 @@ class SkillTile(QFrame):
 
     def _apply_border(self, hovered: bool = False) -> None:
         bg = _TILE_BG_HV if hovered else _TILE_BG
-        color = _SEVERITY_COLOUR.get((self._info.severity or "").lower(), DIVIDER)
-        if self._info.severity is None:
-            bc = ACCENT if hovered else DIVIDER
-            self.setStyleSheet(
-                f"QFrame#SkillTile{{background:{bg};border-radius:8px;border:2px dashed {bc};}}"
-            )
-        else:
-            self.setStyleSheet(
-                f"QFrame#SkillTile{{background:{bg};border-radius:8px;border:2px solid {color};}}"
-            )
+        self.setStyleSheet(
+            f"QFrame#SkillTile{{background:{bg};border-radius:8px;border:1px solid {SYS_BG_PRIMARY};}}"
+        )
 
     # ── Public refresh ────────────────────────────────────────────────────────
 
@@ -420,20 +424,25 @@ class SkillTile(QFrame):
             p = QPainter(self)
             p.setRenderHint(QPainter.RenderHint.Antialiasing)
             p.fillRect(self.rect(), QColor(13, 148, 136, 80))
-            p.setPen(QColor(LIGHT_CANVAS))
+            p.setPen(QColor(SYS_TXT_PRIMARY))
             p.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
             p.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "▶  Scan now")
             p.end()
 
     # ── Mouse / context menu ──────────────────────────────────────────────────
 
-    def _scan_dir(self) -> str:
-        return str(Path(self._info.path).parent)
+    def _scan_path(self) -> str:
+        if self._info.spec_type == "skill":
+            return str(Path(self._info.path).parent)
+        return self._info.path
 
     def mousePressEvent(self, e) -> None:
         if e.button() == Qt.MouseButton.LeftButton:
-            if self._info.spec_type == "skill" and self._info.severity is None:
-                self.scan_requested.emit(self._info.skill_id, self._scan_dir())
+            if (
+                self._info.spec_type in ("skill", "mcp", "a2a")
+                and self._info.severity is None
+            ):
+                self.scan_requested.emit(self._info.skill_id, self._scan_path())
             else:
                 self.detail_requested.emit(self._info.skill_id)
         super().mousePressEvent(e)
@@ -441,21 +450,21 @@ class SkillTile(QFrame):
     def contextMenuEvent(self, e) -> None:
         menu = QMenu(self)
         menu.setStyleSheet(
-            f"QMenu{{background:{DEEP_SURFACE};color:{LIGHT_CANVAS};"
-            f"border:1px solid {DIVIDER};border-radius:6px;padding:4px;}}"
+            f"QMenu{{background:{SYS_BG_SECONDARY};color:{SYS_TXT_PRIMARY};"
+            f"border:1px solid {SYS_STROKE_DIVIDER};border-radius:6px;padding:4px;}}"
             f"QMenu::item{{padding:5px 20px;border-radius:4px;}}"
-            f"QMenu::item:selected{{background:{ACCENT};}}"
-            f"QMenu::separator{{height:1px;background:{DIVIDER};margin:2px 8px;}}"
+            f"QMenu::item:selected{{background:{SYS_ACTION_PRIMARY};}}"
+            f"QMenu::separator{{height:1px;background:{SYS_STROKE_DIVIDER};margin:2px 8px;}}"
         )
-        if self._info.spec_type == "skill":
+        if self._info.spec_type in ("skill", "mcp", "a2a"):
             scan_act = menu.addAction("Scan")
             scan_act.triggered.connect(
-                lambda: self.scan_requested.emit(self._info.skill_id, self._scan_dir())
+                lambda: self.scan_requested.emit(self._info.skill_id, self._scan_path())
             )
             menu.addSeparator()
         open_act = menu.addAction("Open Folder")
         open_act.triggered.connect(
-            lambda: self.open_folder_requested.emit(self._scan_dir())
+            lambda: self.open_folder_requested.emit(str(Path(self._info.path).parent))
         )
         copy_act = menu.addAction("Copy Path")
         copy_act.triggered.connect(

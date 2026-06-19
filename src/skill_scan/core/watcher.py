@@ -1,11 +1,39 @@
 """watchdog-based folder watcher; emits a Qt signal when a skill changes."""
 
+import hashlib
 import threading
+import time
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, pyqtSignal
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
+
+from .db import Skill, session
+
+_DEBOUNCE_SECS = 60  # minimum gap between scans of the same skill folder
+
+
+def _sha256(path: Path) -> str:
+    """Matches skill_discovery._sha256 so results are directly comparable."""
+    h = hashlib.sha256()
+    try:
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(65536), b""):
+                h.update(chunk)
+    except OSError:
+        return ""
+    return h.hexdigest()
+
+
+def _known_hash(path: str) -> str | None:
+    """Last file_hash recorded for this SKILL.md by discovery/trust, if any."""
+    try:
+        with session() as s:
+            skill = s.query(Skill).filter_by(path=str(Path(path))).first()
+            return skill.file_hash if skill else None
+    except Exception:
+        return None
 
 
 class _Handler(FileSystemEventHandler):
@@ -13,6 +41,8 @@ class _Handler(FileSystemEventHandler):
         super().__init__()
         self._callback = callback
         self._last: dict[str, float] = {}
+        self._hashes: dict[str, str] = {}
+        self._seeded: set[str] = set()
 
     def on_modified(self, event):
         self._maybe_fire(event.src_path)
@@ -21,30 +51,36 @@ class _Handler(FileSystemEventHandler):
         self._maybe_fire(event.src_path)
 
     def _maybe_fire(self, path: str):
-        import time
+        # Only react to SKILL.md — ignore all other files in the watched tree.
+        if Path(path).name != "SKILL.md":
+            return
+
+        # Guard against OS events fired for reads or metadata-only touches:
+        # only proceed if the file content has actually changed.
+        digest = _sha256(Path(path))
+        if not digest:
+            return
+
+        skill_root = str(Path(path).parent)
+
+        # First sighting this session — seed against the DB's last-recorded
+        # hash so a mere filesystem touch (sync/indexer/AV, no real content
+        # change) right after app start doesn't read as a "change".
+        if skill_root not in self._seeded:
+            self._seeded.add(skill_root)
+            known = _known_hash(path)
+            if known:
+                self._hashes[skill_root] = known
+
+        if self._hashes.get(skill_root) == digest:
+            return  # content unchanged — spurious event, skip
+        self._hashes[skill_root] = digest
 
         now = time.monotonic()
-        # debounce: only fire once per skill folder per 5 s
-        skill_root = self._find_skill_root(path)
-        if skill_root is None:
-            return
-        last = self._last.get(skill_root, 0)
-        if now - last < 5.0:
+        if now - self._last.get(skill_root, 0) < _DEBOUNCE_SECS:
             return
         self._last[skill_root] = now
         self._callback(skill_root)
-
-    @staticmethod
-    def _find_skill_root(path: str) -> str | None:
-        """Walk up until we find a SKILL.md or hit the watch root."""
-        p = Path(path)
-        for _ in range(5):
-            if (p / "SKILL.md").exists():
-                return str(p)
-            if p.name == "SKILL.md":
-                return str(p.parent)
-            p = p.parent
-        return None
 
 
 class FolderWatcher(QObject):

@@ -4,7 +4,24 @@ from PyQt6.QtCore import Qt, QRect, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QPainter
 from PyQt6.QtWidgets import QFrame, QVBoxLayout, QWidget
 
-from ._palette import ACCENT, DEEP_SURFACE, DIVIDER, MUTED_TEXT
+from ._icons import (
+    fa,
+    ICON_DASHBOARD,
+    ICON_FOLDERS,
+    ICON_INVENTORY,
+    ICON_MANAGE,
+    ICON_TESTING,
+    ICON_ACTIVITY,
+    ICON_OPTIONS,
+    ICON_ABOUT,
+    ICON_EXIT,
+)
+from ._palette import (
+    SYS_ACTION_PRIMARY,
+    SYS_BG_SECONDARY,
+    SYS_STROKE_DIVIDER,
+    SYS_TXT_MUTED,
+)
 
 
 class NavItem(QWidget):
@@ -12,7 +29,7 @@ class NavItem(QWidget):
 
     clicked = pyqtSignal()
 
-    _ICON_FONT = QFont("Segoe Fluent Icons", 15)
+    _ICON_FONT = fa(15)
     _LABEL_FONT = QFont("Segoe UI", 7)
 
     def __init__(self, icon: str, label: str, parent=None):
@@ -48,12 +65,12 @@ class NavItem(QWidget):
         w, h = self.width(), self.height()
 
         if self._active:
-            p.fillRect(0, 0, w, h, QColor(13, 148, 136, 31))  # ACCENT @ 12%
-            p.fillRect(0, 8, 3, h - 16, QColor(ACCENT))  # 3px left bar
+            p.fillRect(0, 0, w, h, QColor(13, 148, 136, 31))  # SYS_ACTION_PRIMARY @ 12%
+            p.fillRect(0, 8, 3, h - 16, QColor(SYS_ACTION_PRIMARY))  # 3px left bar
         elif self._hover:
-            p.fillRect(0, 0, w, h, QColor(30, 41, 59, 200))  # DEEP_SURFACE hover
+            p.fillRect(0, 0, w, h, QColor(30, 41, 59, 200))  # SYS_BG_SECONDARY hover
 
-        color = QColor(ACCENT) if self._active else QColor(MUTED_TEXT)
+        color = QColor(SYS_ACTION_PRIMARY) if self._active else QColor(SYS_TXT_MUTED)
         p.setPen(color)
 
         p.setFont(self._ICON_FONT)
@@ -73,21 +90,23 @@ class NavItem(QWidget):
 
 
 class NavRail(QWidget):
-    """Vertical icon navigation rail — 56px, DEEP_SURFACE background."""
+    """Vertical icon navigation rail — 56px, SYS_BG_SECONDARY background."""
 
     page_changed = pyqtSignal(int)
     exit_requested = pyqtSignal()
 
     # (icon codepoint, label) — index maps directly to QStackedWidget page
     _TOP: list[tuple[str, str]] = [
-        ("", "Folders"),  # 0
-        ("", "Inventory"),  # 1
-        ("", "Create"),  # 2
-        ("", "Testing"),  # 3
+        (ICON_DASHBOARD, "Dashboard"),  # 0
+        (ICON_FOLDERS, "Folders"),  # 1
+        (ICON_INVENTORY, "Inventory"),  # 2
+        (ICON_MANAGE, "Manage"),  # 3
+        (ICON_TESTING, "Testing"),  # 4
+        (ICON_ACTIVITY, "Activity"),  # 5
     ]
     _BOTTOM: list[tuple[str, str]] = [
-        ("", "Options"),  # 4
-        ("", "About"),  # 5
+        (ICON_OPTIONS, "Options"),  # 6
+        (ICON_ABOUT, "About"),  # 7
     ]
 
     def __init__(self, parent=None):
@@ -95,7 +114,7 @@ class NavRail(QWidget):
         self.setFixedWidth(56)
 
         vbox = QVBoxLayout(self)
-        vbox.setContentsMargins(0, 8, 0, 8)
+        vbox.setContentsMargins(0, 0, 0, 8)
         vbox.setSpacing(0)
 
         self._items: list[NavItem] = []
@@ -109,7 +128,7 @@ class NavRail(QWidget):
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
         sep.setFixedHeight(1)
-        sep.setStyleSheet(f"background:{DIVIDER};border:none;")
+        sep.setStyleSheet(f"background:{SYS_STROKE_DIVIDER};border:none;")
         vbox.addWidget(sep)
 
         offset = len(self._TOP)
@@ -121,7 +140,7 @@ class NavRail(QWidget):
 
         vbox.addStretch()
 
-        exit_item = NavItem("", "Exit", self)
+        exit_item = NavItem(ICON_EXIT, "Exit", self)
         exit_item.clicked.connect(self.exit_requested)
         vbox.addWidget(exit_item)
 
@@ -139,5 +158,5 @@ class NavRail(QWidget):
 
     def paintEvent(self, _e) -> None:
         p = QPainter(self)
-        p.fillRect(self.rect(), QColor(DEEP_SURFACE))
+        p.fillRect(self.rect(), QColor(SYS_BG_SECONDARY))
         p.end()
