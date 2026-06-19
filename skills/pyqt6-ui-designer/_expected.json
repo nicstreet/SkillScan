@@ -1,7 +1,0 @@
-{
-  "skill_name": "pyqt6-ui-designer",
-  "expected_safe": true,
-  "expected_severity": "CLEAN",
-  "expected_findings": [],
-  "notes": "Legitimate UI engineering skill. All code examples use standard PyQt6 APIs. No network access, no file system mutations beyond the declared allowed-tools scope, no credential handling, no obfuscation."
-}

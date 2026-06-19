@@ -1,8 +1,0 @@
-{
-  "name": "clean-calculator-mcp",
-  "expected_safe": true,
-  "expected_severity": "CLEAN",
-  "expected_type": "mcp",
-  "expected_findings": [],
-  "notes": "Minimal arithmetic MCP — four clearly-scoped tools with no network access, file access, or hidden instructions. Should produce a clean result."
-}
