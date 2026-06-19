@@ -5,6 +5,36 @@
 
 ---
 
+## 2026-06-18 — Documentation sync pass
+
+Full review of all 7 files in `.claude/architecture/` against the actual current codebase, requested after several sessions of feature work (LLM provider refactor, dashboard widgets, Skill Studio) had drifted ahead of the docs.
+
+### Stale path references fixed
+
+The 2026-06-14 `docs/` → `.claude/architecture/` migration (below) renamed `DevelopmentV2.md` → `development.md` and `ArchitectureV2.md` → `architecture.md`, but left several internal cross-references pointing at the old deleted `docs/...` paths:
+
+| File | Old reference | Fixed to |
+|---|---|---|
+| `todo.md` line 3 | `docs/DevelopmentV2.md` | `development.md` |
+| `development.md` (Phase 2 DB schema note) | `ArchitectureV2.md` | `architecture.md` |
+| `handover.md` | `docs/DevelopmentV2.md`, `docs/ArchitectureV2.md` | regenerated in place with current paths |
+
+`auditlog.md`'s own historical entries (below) were left untouched — they describe what those filenames were called *at the time*, which is accurate as a record.
+
+### Content corrections
+
+- `project_files.md` — full rewrite; was dated 2026-06-13 and missing every file added since (dashboard package, `skill_manager_view.py`, `core/llm.py`, `spec_compliance.py`, `script_lint.py`, `tool_detector.py`, `license_registry.py`, `_icons.py`, `_license_picker.py`, `_status.py`, `options_window.py`, `detect_tooling_dialog.py`, and the rest of the AI-feature view stubs); also corrected a wrong claim that `about_dialog.py`/`settings_dialog.py`/`results_window.py` are "kept for tray fallback" — grepped the codebase and confirmed the tray menu no longer references any of them; relabelled as orphaned/deletion candidates
+- `architecture.md` — nav rail table and Project Structure tree updated to the current 12-view layout; added "LLM Provider Architecture" and "Dashboard Widget Architecture" sections, neither of which had been documented anywhere
+- `development.md` — Phase 1–4 checkboxes were still unchecked despite being confirmed complete (cross-checked against `todo.md` and the live codebase before bulk-toggling); Phase 5 section rewritten to match the as-built Skill Studio (left/right panel layout, XML-tagged AI Review response) instead of the original "Skill Creator" plan (top/bottom layout, JSON findings); duplicate/stale "Known Fixes" section replaced with a pointer to `todo.md`, which is kept live every session
+- `handover.md` — regenerated; was frozen at 2026-06-13, predating the dashboard and LLM refactor entirely
+- `change_history.md` — appended a 2026-06-16 → 2026-06-18 session entry
+
+### Scope note
+
+This was a documentation-only pass — no application code was changed. Flagged for follow-up, not acted on here: `ui/about_dialog.py`, `ui/settings_dialog.py`, `ui/results_window.py` appear to be dead code (no remaining import path); and the working tree has ~66 uncommitted changes including an apparent `skills/` → `evals/` directory restructure that predates this session (see `handover.md` → "Uncommitted changes" for detail) — flagged to the user rather than committed or altered.
+
+---
+
 ## 2026-06-14 — Claude Code hooks added
 
 ### `.claude/hooks/` — created

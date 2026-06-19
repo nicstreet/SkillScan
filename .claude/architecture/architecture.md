@@ -39,16 +39,24 @@ The window is **frameless and borderless** — no native Windows chrome. Custom 
 
 ### Nav rail items
 
-| Item | Description |
-|---|---|
-| Folders | Primary view — folder list + skill tiles |
-| Inventory | Table view of all tracked skills (AI BOM source) |
-| Create | Skill Creator — metadata form + SKILL.md editor |
-| Testing | Migrated from Settings → Testing tab |
-| *(spacer)* | Visual separator |
-| Options | Migrated from SettingsDialog |
-| About | Migrated from AboutDialog |
-| Exit | Bottom of rail — exits the application |
+`QStackedWidget` index, in registration order (`main_window._register_views()`):
+
+| # | Item | Description |
+|---|---|---|
+| 0 | Dashboard | Card-grid overview — hero metrics, integration/AI module health, security posture, action items, etc. |
+| 1 | Folders | Primary view — folder list + skill tiles |
+| 2 | Inventory | Table view of all tracked skills (AI BOM source) — stub, Phase 9 |
+| 3 | Skill Studio | `SkillManagerView` — package/validate/remediate skill content against the agentskills.io spec |
+| 4 | Testing | Eval test-skill download/management |
+| 5 | Activity Log | Filterable scan/trust event history |
+| 6 | Prompt Builder | Stub — compose/template/test prompts against the configured LLM |
+| 7 | Amalgamator | Stub — merge multiple skills into one consolidated skill |
+| 8 | Skill Competence | Stub — bundle skills, have Claude build a demo app using all of them |
+| 9 | Options | Embedded `OptionsView` — also reachable as a floating, titlebar-less window via `options_window.py` (tray-triggered). Every page autosaves on each discrete change (toggle/combo/field commit); no manual Save button in either context |
+| 10 | About | About page |
+| 11 | Skill Detail | Pushed onto the stack (not in the rail) when a tile/row is opened; back-history managed by `main_window` |
+
+Burger hover menu (not the rail itself) groups items into core views / AI views / Options+About+Exit, since the rail only surfaces a subset directly.
 
 Active item: `#0D9488` icon + label, `rgba(13,148,136,0.12)` background, 3px left border bar in `#0D9488`.
 
@@ -113,49 +121,73 @@ Folder-level BOM snapshots aggregate all components in that folder into a single
 
 ## Project Structure
 
+Current as of 2026-06-18. `integrations/` (DefenseClaw, AI BOM, agentskills.io spec, MCP/A2A adapter) is still planned — Phase 6+ — and does not exist yet; MCP manifests are currently handled directly inside `core/scanner.py` via `cisco-ai-mcp-scanner`, not a separate adapter module. See [project_files.md](project_files.md) for the full file-by-file inventory.
+
 ```
 SkillScan/
-├── run.ps1
-├── run.bat
-└── skill_scan/
-    ├── __init__.py                     # __version__ = "2.0.0"
+├── run.ps1, run.bat
+├── requirements.txt, requirements-dev.txt
+├── evals/                              # eval fixtures (skills/, mcp/, a2a/) for test_skills.py
+└── src/skill_scan/
+    ├── __init__.py                     # __version__ = "1.0.0"
     ├── __main__.py                     # Entry: QApplication, MainWindow, TrayApp (satellite)
     ├── core/
-    │   ├── config.py                   # JSON config — load() / save() (unchanged)
-    │   ├── scanner.py                  # ScanJob — QProcess wrapper (unchanged)
-    │   ├── router.py                   # NEW — file type detection, dispatcher
-    │   ├── db.py                       # NEW — SQLAlchemy engine, migrations, session factory
-    │   ├── skill_discovery.py          # NEW — walk folders, populate DB, hash-check deletions
-    │   ├── bom_generator.py            # NEW — CycloneDX BOM assembly from DB records
-    │   ├── result_store.py             # Retained — migrates JSON history into DB on first run
-    │   ├── clipboard_watcher.py        # Retained (unchanged)
-    │   ├── watcher.py                  # Retained (unchanged)
-    │   └── test_skills.py              # Retained (unchanged)
+    │   ├── config.py                   # JSON config; per-provider/per-feature LLM credentials — get_llm_creds()
+    │   ├── llm.py                      # LLMJob(QObject) — QThread-based LiteLLM call for in-app (Skill Studio) actions
+    │   ├── scanner.py                  # ScanJob — QProcess wrapper around skill-scanner / mcp-scanner
+    │   ├── router.py                   # detect_type() — SKILL_MD / MCP_MANIFEST / A2A_CARD / UNKNOWN
+    │   ├── db.py                       # SQLAlchemy engine, models, session factory
+    │   ├── skill_discovery.py          # walk folders, populate DB, hash-check, trust invalidation
+    │   ├── spec_compliance.py          # single source of truth for agentskills.io scoring
+    │   ├── script_lint.py              # heuristic checks for scripts/ files
+    │   ├── license_registry.py         # data/license_registry.json loader
+    │   ├── tool_detector.py            # data/tool_registry.json — installed AI tooling detection
+    │   ├── result_store.py             # bounded JSON result history; ScanResult.llm_skipped
+    │   ├── clipboard_watcher.py
+    │   ├── watcher.py
+    │   └── test_skills.py
+    ├── data/
+    │   ├── license_registry.json
+    │   └── tool_registry.json
     ├── ui/
-    │   ├── _palette.py                 # Colour tokens (unchanged)
-    │   ├── _widgets.py                 # RoundedCard, TitleBar, card_divider, SCROLLBAR_STYLE
-    │   ├── main_window.py              # NEW — frameless QMainWindow, nav rail, QStackedWidget
-    │   ├── nav_rail.py                 # NEW — NavRail QWidget, NavItem, active-state management
-    │   ├── scan_progress.py            # Retained — frameless scan dialog (unchanged)
-    │   ├── result_formatter.py         # Retained — HTML findings report (unchanged)
-    │   ├── tray.py                     # Retained — satellite tray (simplified; no Settings launch)
-    │   ├── toggle_row.py               # Retained — animated pill toggle (unchanged)
+    │   ├── _palette.py                 # SYS_* colour tokens
+    │   ├── _widgets.py                 # RoundedCard, TitleBar, SCROLLBAR_STYLE, _DarkMessageBox + msg_*()
+    │   ├── _icons.py                   # Font Awesome 6 Free loader — fa()/fa_reg()
+    │   ├── _license_picker.py          # LicensePicker — shared by Options + Skill Studio
+    │   ├── _status.py                  # AiStatusRoutine — taskbar status dot+text wrappers
+    │   ├── _flow_layout.py             # FlowLayout / FlowContainer; reorder_by()
+    │   ├── main_window.py              # frameless main window, nav rail, QStackedWidget (12 views)
+    │   ├── nav_rail.py                 # NavRail, burger hover menu
+    │   ├── options_window.py           # floating Options window — mirrors MainWindow/_MainPanel split, no titlebar/drag/shadow/mask
+    │   ├── help_window.py              # floating help window — same shell/panel split; content-free skeleton
+    │   ├── test_window.py              # ⚠️ TEMPORARY diagnostic-only — see "Key Design Decisions"; not part of the app
+    │   ├── detect_tooling_dialog.py    # "Detect AI Tooling…" picker
+    │   ├── scan_progress.py            # frameless scan dialog; AI Security Evaluation button
+    │   ├── result_formatter.py         # HTML findings report renderer
+    │   ├── toggle_row.py               # pill toggle for QMenu
+    │   ├── tray.py                     # satellite tray
     │   └── views/
-    │       ├── folders_view.py         # NEW — QSplitter: FolderPane + SkillTileGrid
-    │       ├── skill_detail_view.py    # NEW — single skill: spec score, scan report, history
-    │       ├── inventory_view.py       # NEW — QTableView over all tracked skills; BOM export
-    │       ├── skill_creator_view.py   # NEW — metadata form + SKILL.md editor + AI Review
-    │       ├── testing_view.py         # MIGRATED from settings_dialog._make_testing_tab()
-    │       ├── options_view.py         # MIGRATED from SettingsDialog
-    │       └── about_view.py           # MIGRATED from AboutDialog
-    ├── integrations/
-    │   ├── defenseclaw.py              # NEW — DefenseClaw subprocess wrapper + result parser
-    │   ├── aibom.py                    # NEW — CycloneDX BOM generation + export
-    │   ├── agentskills_spec.py         # NEW — agentskills.io JSON Schema validator
-    │   └── mcp_a2a.py                  # NEW — MCP / A2A manifest detection and scan adapter
+    │       ├── dashboard_view.py       # card grid, drag-and-drop, edit mode, 60s auto-refresh
+    │       ├── dashboard/
+    │       │   ├── _base.py            # DashboardWidget base — WIDGET_ID, SIZE, build_content(), refresh()
+    │       │   ├── _widgets.py         # 14 widget classes
+    │       │   └── __init__.py         # REGISTRY + DEFAULT_LAYOUT
+    │       ├── folders_view.py         # FolderPane + SkillTileGrid, FILTER/SORT/SIZE toolbar
+    │       ├── skill_tile.py           # SkillTile(QFrame) — severity border, badges, hover overlay
+    │       ├── skill_table.py          # QTableWidget alternate list view
+    │       ├── skill_detail_view.py    # single skill: Report/History/Raw Output/Compliance tabs
+    │       ├── skill_manager_view.py   # Skill Studio — builder UI, AI Review, Optimize Description
+    │       ├── inventory_view.py       # ⚠️ stub — Phase 9
+    │       ├── testing_view.py
+    │       ├── activity_log_view.py
+    │       ├── prompt_builder_view.py  # ⚠️ stub
+    │       ├── amalgamator_view.py     # ⚠️ stub
+    │       ├── skill_competence_view.py# ⚠️ stub
+    │       ├── options_view.py         # OptionsView(parent) — search-filterable icon nav, autosave
+    │       └── about_view.py
     └── windows/
-        ├── taskbar_dock.py             # Retained — drag-drop strip (unchanged)
-        └── context_menu.py             # Retained — optional HKCU install (unchanged)
+        ├── taskbar_dock.py             # drag-drop strip docked to the Windows taskbar
+        └── context_menu.py             # HKCU Explorer right-click installer
 ```
 
 ---
@@ -251,6 +283,72 @@ MCP manifests and A2A agent cards do not use `cisco-ai-skill-scanner` (which exp
 Reads skill metadata + latest scan result from the DB and assembles a CycloneDX 1.6 ML BOM document. Export formats: `cyclonedx-json`, `cyclonedx-xml`, `spdx-json`. The Inventory view's "Export BOM" button triggers a folder-scoped or library-scoped export with a file-save dialog.
 
 BOM diff: compares two `bom_snapshots` by component name+version, produces an `added / removed / changed` summary shown in a modal dialog.
+
+---
+
+## LLM Provider Architecture
+
+SkillScan has two independent LLM consumers, each with its own active-provider selection, so a user can run (e.g.) Anthropic for one and a local Ollama model for the other simultaneously:
+
+| Feature key | Consumer | Entry point |
+|---|---|---|
+| `inapp` | Skill Studio — Optimize Description, AI Review | `core/llm.py` `LLMJob` |
+| `scanner` | `cisco-ai-skill-scanner` / `cisco-ai-mcp-scanner` `--use-llm` analyzer | `core/scanner.py` `_build_env()` / `_build_mcp_env()` |
+
+### Config schema (`core/config.py`)
+
+Each provider stores its own credentials, independent of which feature is currently using it:
+
+```python
+_DEFAULTS = {
+    "inapp_llm_provider":    "anthropic",   # which provider Skill Studio uses
+    "scanner_llm_provider":  "anthropic",   # which provider the scanner subprocess uses
+    "anthropic_api_key": "", "anthropic_model": "anthropic/claude-sonnet-4-6",
+    "openai_api_key":    "", "openai_model":    "openai/gpt-4o",
+    "ollama_base_url":   "http://localhost:11434", "ollama_model": "ollama/llama3.2",
+    "openai_local_base_url": "http://localhost:1234/v1",
+    "openai_local_model":    "openai/local-model",
+    "openai_local_api_key":  "",
+    ...
+}
+_LOCAL_PROVIDERS = {"ollama", "openai (local)"}
+```
+
+`get_llm_creds(cfg, feature) -> dict` resolves `{provider, api_key, model, base_url, is_local}` for whichever provider the given feature currently points at, via the internal `_creds_for(cfg, provider)`. `_migrate_llm()` runs on every `load()` and rewrites legacy flat `llm_provider`/`llm_api_key`/`llm_model`/`llm_base_url` keys (pre-refactor config files) into the new per-provider schema, so existing `config.json` files upgrade in place with no data loss.
+
+### Local providers need a non-empty dummy API key
+
+LiteLLM routes Ollama and other OpenAI-compatible local servers through its OpenAI client layer, which raises `AuthenticationError: The api_key client option must be set` if `api_key` is empty or `None` — even though the local server itself ignores the value entirely. Both call sites work around this the same way:
+
+```python
+# core/llm.py
+kwargs["api_key"] = api_key if api_key else "local"
+
+# core/scanner.py — _build_env() / _build_mcp_env()
+env["SKILL_SCANNER_LLM_API_KEY"] = creds["api_key"] or "local"
+```
+
+`base_url` (when set) is passed as `api_base` to `litellm.completion()`, and mirrored to the `OPENAI_API_BASE` env var for the scanner subprocess as a LiteLLM fallback.
+
+---
+
+## Dashboard Widget Architecture
+
+`ui/views/dashboard/_base.py` defines `DashboardWidget(QWidget)`, the base card class every dashboard widget subclasses:
+
+| Attribute / method | Purpose |
+|---|---|
+| `WIDGET_ID` | Stable string key used in the persisted layout config and `DEFAULT_LAYOUT` |
+| `SIZE` | `"full"` / `"half"` / `"third"` — how much grid width the card claims |
+| `build_content()` | Builds the card's inner widget tree once |
+| `refresh()` | Re-pulls live data into the already-built widgets; called on a 60s `QTimer` and on demand |
+
+`ui/views/dashboard/__init__.py` exposes `REGISTRY` (the ordered list of all widget classes, used as the "available widgets" picker in edit mode) and `DEFAULT_LAYOUT` (a list of rows, each row a list of `WIDGET_ID`s, defining first-run placement). `DashboardView` reads/writes the user's customised layout to config, falling back to `DEFAULT_LAYOUT`.
+
+Two widgets read LLM config directly, each scoped to its own feature:
+- `IntegrationHealthWidget` → `get_llm_creds(cfg, "scanner")`
+- `SystemSetupWidget` → `get_llm_creds(cfg, "inapp")`
+- `AiModuleMapWidget` reads **both**, rendering one row per AI-touching module across the app with a status dot: green (`SYS_BADGE_SAFE`) when the feature's active provider has a usable key/local endpoint, amber (`SYS_BORDER_ADVISORY`) when configured but missing a key, grey (`SYS_TXT_MUTED`) when the module itself is disabled.
 
 ---
 
@@ -407,6 +505,12 @@ scroll_area.setStyleSheet(f"background:{ANCHOR};" + SCROLLBAR_STYLE)  # ❌
 
 Applies to: `QTextBrowser`, `QPlainTextEdit`, `QListWidget`, `QScrollArea` (call on `.verticalScrollBar()`), and any other widget with an internal scrollbar.
 
+**Round by painting, not masking**
+`setMask()`/`QRegion` is a hard, binary, per-pixel clip — it cannot antialias, regardless of how finely its boundary polygon is sampled. A masked window edge will always look rougher than a child widget's own `QPainterPath` + `Antialiasing` fill. The fix is to never need a mask: every layer inside a rounded window should paint its own correctly-nested rounded shape (or have no background fill of its own) so nothing square-edged is ever exposed at an outer curve. `help_window.py` was built from scratch as a clean reference for this; `options_window.py` was then reworked to match it — `OptionsView` no longer paints one flat square `fillRect()` for its whole area, and instead tiles itself with two `_Surface` children (nav rounded outer-left, `content_col` rounded outer-right), eliminating the `round_corners()` mask entirely. The concentric-radius rule applies recursively: a child's safe radius is `outer_radius − inset`, and any further nested opaque content needs clearance ≥ its container's own radius on every rounded side, or its square corner silently paints over (not just clips) the curve with no visible roughness to flag the bug.
+
+**A window's exact pixel size can itself cause a visible seam**
+Two widgets laid out independently inside the same frameless window can round to different device pixels under the OS compositor's DPI scaling at one specific window size, leaving a 1px seam between them — purely a sub-pixel coincidence, unrelated to z-order, colour, or structure. It reproduces only on a real screen; `QWidget.grab()` is a software render with no compositor involved and will show a perfectly uniform result even when the live window doesn't. Found live in `options_window.py` at 820×640; nudging `resize()` by a few percent and re-checking on a real screen is the cheap first diagnostic — try that before bisecting layout structure with a stripped-down test window (`test_window.py` was built for exactly this and correctly ruled out every structural layer before the size-based root cause was found).
+
 ---
 
 ## Key Design Decisions
@@ -419,8 +523,19 @@ Applies to: `QTextBrowser`, `QPlainTextEdit`, `QListWidget`, `QScrollArea` (call
 | SQLite over JSON result store | Enables relational queries (skills per folder, history per skill, BOM snapshots); `result_store.py` JSON migrated in on first run |
 | SHA-256 hash for trust invalidation | File content change = trust revoked automatically; prevents stale trust badges after silent edits |
 | CycloneDX 1.6 ML BOM format | Industry standard for AI/ML inventory; tooling ecosystem (SBOM viewers, compliance scanners) already supports it |
+| `OptionsWindow`/`HelpWindow` use no `round_corners()` mask | A region mask can't antialias; painting every layer's own correctly-nested rounded shape looks strictly better and was proven out in `help_window.py` first |
+| `options_window.py` fixed at 850×650 (then 870×670 after the border/margin follow-up, **unconfirmed** as of this entry) | The original 820×640 hit a fixed-size DPI-rounding seam between independently-laid-out widgets; re-check for the seam any time this window's size changes |
+| `specification.md` written stack-agnostic, separate from this file | User wanted a rebuild-from-scratch blueprint usable outside this codebase/stack, deliberately excluding pixel-level styling so it pairs with external design artefacts instead of duplicating them |
 | Separate `integrations/` package | DefenseClaw, aibom, agentskills_spec each have distinct install requirements and may not be available; keeping them isolated lets the app degrade gracefully if a dependency is missing |
 | MCP/A2A via synthetic skill context | Avoids forking the scan pipeline; routes non-SKILL.md types through the same LLM/Trigger analyzers with adapted prompt context |
 | `QFlowLayout` for tiles | Tiles reflow naturally on resize; fixed grid column count would leave orphan whitespace at different window widths |
 | Lazy view loading | Each nav view is instantiated on first visit, not at startup; keeps startup time fast even as the number of views grows |
 | Tray simplified in v2 | Tray menu loses Settings (→ Options nav item) and About (→ About nav item); retains scan triggers, feature toggles, and notifications only |
+
+---
+
+## Open Design Questions
+
+- **`options_window.py` at 870×670 is unconfirmed for the DPI-rounding seam** — 850×650 was verified clean on a real screen; the border-halving + margin follow-up grew the window to a different, untested value. Needs a real-screen check before this is considered closed.
+- **`test_window.py` and its burger-menu entry are temporary** — left in place at the user's preference after the bisection confirmed the seam wasn't structural. No decision yet on when to remove it; revisit next session if it hasn't come up again.
+- **Notification-suppression feature is half-wired** — `suppress_error_notifications`/`suppress_additional_notifications` exist in `core/config.py` but have no Options UI toggle and `tray.py` doesn't check them yet. Explicitly paused mid-implementation by the user (a tool-use rejection mid-edit), not abandoned — don't resume without it being re-raised.
