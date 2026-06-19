@@ -2,7 +2,7 @@
 
 > Canonical roadmap: [`development.md`](development.md)  
 > This file is a quick-reference view of all outstanding work.  
-> Last updated: 2026-06-18
+> Last updated: 2026-06-19
 
 ---
 
@@ -23,6 +23,14 @@ These are confirmed bugs in the current v2 build. Address before marking any new
 | 6 | **Folder watcher triggering repeated scans** | `core/watcher.py` | ✅ Fixed 2026-06-15 — filter to SKILL.md changes only (was firing on any file in the tree incl. scan output/DB writes); debounce raised from 5s to 60s |
 | 10 | **Error message box colours** | `ui/_widgets.py` | ✅ Fixed 2026-06-18 — `_DarkMessageBox(QDialog)` in `_widgets.py`: frameless, no OS chrome, FA icon (teal/amber/red per type), rounded dark card, palette-styled buttons. `msg_question/information/warning/critical()` wrappers replace all `QMessageBox.static()` calls in `activity_log_view`, `dashboard_view`, `skill_manager_view`. |
 | 11 | **Remove title bar on SkillDetail** | `ui/views/skill_detail_view.py` | ✅ Fixed 2026-06-18 — `_make_header()` background changed from `SYS_BG_SECONDARY` to `SYS_BG_PRIMARY`; the contrasting band that read as a title bar is gone. |
+| 12 | **OptionsWindow rounded corners looked rougher than the main window** | `options_window.py`, `views/options_view.py` | ✅ Fixed 2026-06-19 — removed the `round_corners()` mask entirely; `OptionsView` no longer paints one flat square `fillRect()`, instead tiles itself with two `_Surface` children (nav rounded outer-left, `content_col` rounded outer-right), mirroring `help_window.py`. See `change_history.md` for the full saga. |
+| 13 | **1px seam on the Options General page, ~10px from the right/bottom edges** | `options_window.py` | ✅ Fixed 2026-06-19 — turned out to be a fixed-size DPI-rounding coincidence at 820×640, not structural (confirmed via `test_window.py` bisection — every layer came back clean). Fixed by resizing to 850×650, confirmed seam-free on a real screen. |
+
+> ⚠️ **Pending verification (not yet a confirmed fix):** a follow-up cosmetic request right after #13 (halve the border, grow the window to compensate, then tighten the panel margin) moved `options_window.py` to **870×670** — a different, untested value than the 850×650 actually confirmed above. The seam is proven size-sensitive, so this needs its own real-screen check before being added to the table above as fixed.
+
+> ⏸️ **Paused, not abandoned: notification suppression.** `core/config.py` has `suppress_scan_windows`, `suppress_error_notifications`, `suppress_additional_notifications` keys (added in response to "still getting a load of windows messages for skills") but no Options UI toggle exists for any of them, and `tray.py` doesn't check `suppress_error_notifications`/`suppress_additional_notifications` anywhere yet. The user rejected a tool-use edit to `tray.py` mid-implementation and pivoted to a different topic — explicitly paused, don't resume without it being re-raised.
+
+> 🗑️ **`test_window.py` is temporary diagnostic scaffolding**, not a real feature — see Skills Library note above and `change_history.md`. Left in place (burger menu → "Test Window") at the user's preference. No timeline for removal; ask before deleting it.
 
 ---
 
@@ -96,7 +104,8 @@ These were done across the previous and current sessions — recorded here for t
 | # | Document | Notes |
 |---|---|---|
 | D1 | **SDD — SkillScan Software Design Document** | Full SDD covering architecture, data model, component interactions, DB schema, scan pipeline, threading model, config store. |
-| D2 | **Window, Menu & Toolbar Specification** | Document the current frameless window build: panel structure, taskbar layout, hover menus (nav + about), Options window, dim overlay, resize event filter, icon inventory, palette tokens in use. Useful as a reference for adding new chrome elements consistently. |
+| D2 | **Window, Menu & Toolbar Specification** | Document the current frameless window build: panel structure, taskbar layout, hover menus (nav + about), Options window, dim overlay, resize event filter, icon inventory, palette tokens in use. Useful as a reference for adding new chrome elements consistently. Partially satisfied by D3 below (the conceptual patterns), but the icon-inventory/palette-token catalogue this describes still isn't written anywhere — `ui-detailed-design` (see Claude's available skills) may be the right tool for that, not a new doc. |
+| D3 | **Stack-agnostic product/technical specification** | ✅ Done 2026-06-19 — `specification.md`. Deliberately excludes pixel/colour-level detail (that's D2's job, still open) in favour of behaviour and architecture *patterns*, so it can pair with external design artefacts or a rebuild in a different stack. |
 
 ---
 
@@ -254,14 +263,18 @@ Scan skills sourced from public marketplaces and repositories before they touch 
 
 ---
 
-## Skills Library (planned additions)
+## Skills Library — built 2026-06-19 (superseded the rows below)
 
-| Skill | Status | Description |
+The "Planned" rows that used to live here were built — as Claude Code skills at `~/.claude/skills/`, not inside this repo. They cover the same ground under different names, scoped to what was actually learned building this app's UI rather than guessed in advance:
+
+| Skill | Status | Covers |
 |---|---|---|
-| `ui-text` | Planned | UI copy conventions |
-| `ui-design-elements` | Planned | Colour tokens, typography, spacing, iconography |
-| `ui-window-elements` | Planned | Window chrome patterns |
-| `ui-about-dialog` | Planned | About dialog conventions |
-| `ui-options-dialog` | Planned | Options dialog structure |
-| `pyqt-window-panes-toolbar-menus` | Planned | PyQt6 frameless window construction: panel/pane layout, toolbar build pattern, hover menus, signal wiring, resize event filter, dim overlay. Based on the SkillScan main window implementation. |
-| `features-md-generator` | Planned | Skill that produces a `features.md` for a built UI component: full-size annotated diagram with numbered callouts, plus a companion table listing each component's size, colour token, padding, font, and role. Used to document UI builds for handover and spec reference. |
+| `pyqt6-frameless-window` | ✅ Built | Window creation/sectioning/rounding — supersedes the planned `ui-window-elements` and `pyqt-window-panes-toolbar-menus` |
+| `pyqt6-icons-buttons-text` | ✅ Built | FA icon loading, button variants, toggle switch, label hierarchy — supersedes the planned `ui-text`/`ui-design-elements` overlap |
+| `pyqt6-scrollbars` | ✅ Built | `SCROLLBAR_STYLE`, viewport-rounding gotcha |
+| `pyqt6-menus` | ✅ Built | Hover `QMenu` pattern, `QWidgetAction` toggle rows |
+| `pyqt6-help-window` | ✅ Built | Dialog lifecycle — lazy singleton, dim overlay, centering |
+| `pyqt6-naming-conventions` | ✅ Built | Casual-term → formal-term glossary — supersedes the planned `ui-about-dialog`/`ui-options-dialog` naming overlap |
+| `pyqt6-options-pane` | ✅ Built (rewritten 2026-06-19 to match the current autosave/no-Save-button design) | Settings-pane structure — supersedes the planned `ui-options-dialog` |
+
+`features-md-generator` (diagram + table doc generator) was **not** built — no equivalent exists yet. The `ui-detailed-design` skill (listed in Claude's available-skills, see system context) may already cover this need; worth checking before building a new one.

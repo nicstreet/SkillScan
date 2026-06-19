@@ -4,7 +4,7 @@
 > Supersedes the original v1 tray-app roadmap (historical; no longer in the repo).
 > Architecture reference: [architecture.md](architecture.md)
 > Quick-reference Known Fixes + condensed pointers: [todo.md](todo.md)
-> Last synced against the codebase: 2026-06-18 — Phases 1–4 confirmed complete; Phase 5 builder UI confirmed complete (see todo.md for the detailed Phase 5 breakdown, kept live there since it changes faster than this file).
+> Last synced against the codebase: 2026-06-19 — Phases 1–5 confirmed complete (see todo.md for the detailed Phase 5 breakdown, kept live there since it changes faster than this file). This session's work was UI polish (Options window de-masking/seam fix) and documentation (`specification.md`), not new phase work — see `change_history.md` and `handover.md` for detail.
 
 ---
 
