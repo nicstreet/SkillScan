@@ -8,6 +8,11 @@ core/spec_compliance.py stays pure scoring logic with no UI imports.
 
 import html as _html
 
+from ..core.skill_budget import (
+    PER_SKILL_CAP_CURRENT,
+    PER_SKILL_CAP_LEGACY,
+    check_description_length,
+)
 from ..core.spec_compliance import RECOMMENDED_FIELDS, REQUIRED_FIELDS, ComplianceResult
 from ._palette import (
     SYS_BADGE_SAFE,
@@ -130,6 +135,32 @@ def render_compliance_html(meta: dict, result: ComplianceResult) -> str:
                 f"{_html.escape(issue)}</li>"
             )
         parts.append("</ul>")
+
+    # Claude Code skill-listing budget — informational only, not part of the
+    # formal spec, see core/skill_budget.py. Community-sourced and known to
+    # change between Claude Code versions; don't treat as certain.
+    budget = check_description_length(str(meta.get("description") or ""))
+    if budget.over_legacy_cap:
+        budget_colour = (
+            SYS_BADGE_UNSAFE if budget.over_current_cap else SYS_BORDER_ADVISORY
+        )
+        note = (
+            f"exceeds the {PER_SKILL_CAP_CURRENT}-char current display cap"
+            if budget.over_current_cap
+            else f"exceeds the older {PER_SKILL_CAP_LEGACY}-char display cap "
+            f"(some Claude Code versions truncate beyond this)"
+        )
+        parts.append(
+            f'<p style="font-size:11px;font-weight:700;color:{SYS_TXT_MUTED};'
+            f'letter-spacing:1px;margin-bottom:8px;">DESCRIPTION LENGTH</p>'
+        )
+        parts.append(
+            f'<p style="color:{budget_colour};margin:0 0 20px;">'
+            f"{budget.description_length} characters — {note}. Claude Code's "
+            f"available_skills listing has an undocumented, version-dependent "
+            f"character budget shared across all installed skills — see "
+            f"url.md for sources.</p>"
+        )
 
     parts.append("</body></html>")
     return "".join(parts)

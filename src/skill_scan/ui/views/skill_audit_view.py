@@ -27,12 +27,15 @@ from PyQt6.QtWidgets import (
 
 from ...core import config as cfg
 from ...core.skill_audit import DEFAULT_AUDIT_ROOT, AuditEntry, SkillAuditWorker
+from ...core.skill_budget import aggregate_budget_report, check_description_length
 from .._compliance_render import render_compliance_html, score_colour
 from .._palette import (
     SYS_ACTION_PRIMARY,
+    SYS_BADGE_SAFE,
     SYS_BADGE_UNSAFE,
     SYS_BG_PRIMARY,
     SYS_BG_SECONDARY,
+    SYS_BORDER_ADVISORY,
     SYS_STROKE_DIVIDER,
     SYS_STROKE_SUBTLE,
     SYS_TXT_MUTED,
@@ -87,8 +90,10 @@ class SkillAuditView(QWidget):
         table_lay.setSpacing(0)
 
         self._table = QTableWidget()
-        self._table.setColumnCount(4)
-        self._table.setHorizontalHeaderLabels(["Name", "Folder", "Score", "Status"])
+        self._table.setColumnCount(5)
+        self._table.setHorizontalHeaderLabels(
+            ["Name", "Folder", "Score", "Status", "Desc. Chars"]
+        )
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.verticalHeader().hide()
@@ -98,10 +103,12 @@ class SkillAuditView(QWidget):
         hdr = self._table.horizontalHeader()
         self._table.setColumnWidth(2, 60)
         self._table.setColumnWidth(3, 130)
+        self._table.setColumnWidth(4, 90)
         hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         hdr.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         hdr.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        hdr.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         hdr.setDefaultAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
@@ -329,9 +336,16 @@ class SkillAuditView(QWidget):
         healthy = sum(1 for e in self._entries if e.score >= 75)
         needs_attention = sum(1 for e in self._entries if 50 <= e.score < 75)
         at_risk = sum(1 for e in self._entries if e.score < 50)
+
+        budget = aggregate_budget_report(
+            {e.name: str(e.meta.get("description") or "") for e in self._entries}
+        )
         self._summary_lbl.setText(
             f"{len(self._entries)} skill(s)  ·  "
-            f"{healthy} healthy  ·  {needs_attention} needs attention  ·  {at_risk} at risk"
+            f"{healthy} healthy  ·  {needs_attention} needs attention  ·  {at_risk} at risk  ·  "
+            f"description budget: {budget.estimated_total_with_overhead:,}/"
+            f"{budget.fallback_budget:,} chars ({budget.budget_used_fraction:.0%})  ·  "
+            f"{len(budget.over_legacy_cap)} over legacy cap"
         )
 
         for entry in self._entries:
@@ -340,6 +354,15 @@ class SkillAuditView(QWidget):
             self._table.setRowHeight(row, 24)
 
             colour = score_colour(entry.score)
+            desc_status = check_description_length(
+                str(entry.meta.get("description") or "")
+            )
+            if desc_status.over_current_cap:
+                desc_colour = SYS_BADGE_UNSAFE
+            elif desc_status.over_legacy_cap:
+                desc_colour = SYS_BORDER_ADVISORY
+            else:
+                desc_colour = SYS_BADGE_SAFE
 
             name_item = QTableWidgetItem(entry.name)
             name_item.setForeground(self._fg(SYS_TXT_PRIMARY))
@@ -349,11 +372,14 @@ class SkillAuditView(QWidget):
             score_item.setForeground(self._fg(colour))
             status_item = QTableWidgetItem(_status_label(entry.score))
             status_item.setForeground(self._fg(colour))
+            desc_item = QTableWidgetItem(str(desc_status.description_length))
+            desc_item.setForeground(self._fg(desc_colour))
 
             self._table.setItem(row, 0, name_item)
             self._table.setItem(row, 1, folder_item)
             self._table.setItem(row, 2, score_item)
             self._table.setItem(row, 3, status_item)
+            self._table.setItem(row, 4, desc_item)
 
         if self._entries:
             self._table.selectRow(0)
