@@ -25,6 +25,12 @@ CORPUS = {
     # (and wrongly) match almost any task, testing over-triggering.
     "general-helper": "Helper functions for various tasks.",
     "assistant-tools": "Tools to assist with assorted requests.",
+    # Vague/clear twin pair (added 2026-06-20) - pdf-helper genuinely covers
+    # PDF redaction, but its description gives no signal of that, unlike
+    # pdf-builder's clear (but redaction-silent) description above. Tests
+    # whether vagueness causes a real miss on the skill that should win,
+    # not just whether clarity wins and irrelevant skills stay silent.
+    "pdf-helper": "Helps with PDF stuff.",
 }
 
 root = Path(__file__).parent / "corpus"

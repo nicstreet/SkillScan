@@ -58,5 +58,9 @@
   {
     "prompt": "Write Playwright end-to-end tests for our web app's login flow.",
     "expected_skill": "webapp-testing"
+  },
+  {
+    "prompt": "Redact all social security numbers from this PDF before sharing it externally.",
+    "expected_skill": "pdf-helper"
   }
 ]
