@@ -19,6 +19,18 @@ Informs `core/skill_budget.py` (description-length risk check, Own-skill audit).
 
 ---
 
+## Skill hot-reload and progressive disclosure
+
+Informs the "Task → skillset swapping" idea (todo.md, AI Features) — confirms the mechanism is technically viable today rather than waiting on a future Anthropic feature.
+
+| URL | Purpose |
+|---|---|
+| https://claudelog.com/faqs/what-is-skill-hot-reload-in-claude-code/ | Confirms skill hot-reload (CLI 2.1.0+) — files added/edited/removed under an already-watched `.claude/skills/` directory take effect live, no restart |
+| https://github.com/anthropics/claude-code/issues/20507 | "Feature Request: Add /reload-skills command" — context on the limitation that a brand-new top-level skills directory still needs a restart to start being watched |
+| https://medium.com/@dan.avila7/claude-code-skills-progressive-disclosure-step-by-step-3ca02a4a9f60 | Confirms the three-level progressive disclosure model (frontmatter always loaded → body loaded on activation → supporting files loaded as needed) |
+
+---
+
 ## Core dependencies
 
 | URL | Purpose |
