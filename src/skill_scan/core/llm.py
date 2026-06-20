@@ -4,6 +4,7 @@ Uses the 'inapp' feature credentials from config (Options → LLM → Skill Stud
 Falls back to ANTHROPIC_API_KEY environment variable when no API key is configured.
 """
 
+import json
 import logging
 import os
 
@@ -34,6 +35,33 @@ def _env_fallback_key() -> str:
 
 class LLMError(RuntimeError):
     """Raised by call_llm_sync() — same message text the GUI shows via LLMJob.error."""
+
+
+def extract_json_object(text: str | None) -> dict | None:
+    """Pull the first JSON object out of LLM/subprocess output, tolerating any
+    leading/trailing prose despite instructions to respond with JSON only.
+
+    Extracted from skill_detail_view.py once a second caller (core/intent_parser.py)
+    needed the identical logic - see python-style.md's DRY rule.
+    """
+    if not text:
+        return None
+    try:
+        result = json.loads(text.strip())
+        if isinstance(result, dict):
+            return result
+    except json.JSONDecodeError:
+        pass
+    decoder = json.JSONDecoder()
+    for i, ch in enumerate(text):
+        if ch == "{":
+            try:
+                obj, _ = decoder.raw_decode(text, i)
+                if isinstance(obj, dict):
+                    return obj
+            except json.JSONDecodeError:
+                continue
+    return None
 
 
 def call_llm_sync(

@@ -3,7 +3,6 @@
 import hashlib
 import html as _html
 import json
-import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,6 +26,8 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core import spec_compliance
+from ...core.activity_log import log_activity as _log_activity
+from ...core.llm import extract_json_object as _parse_raw_json
 from ...core.db import Skill, ScanResult as DbScanResult, init_db, session
 from ...core.scanner import ScanJob
 from ...core.result_store import ScanResult as LegacyScanResult
@@ -50,10 +51,6 @@ from .._palette import (
     SYS_TXT_MUTED,
 )
 from .._widgets import SCROLLBAR_STYLE
-
-# ── Module-level constants ────────────────────────────────────────────────────
-
-_LOG_PATH = Path(os.environ.get("APPDATA", "~")) / "SkillScan" / "activity.log"
 
 # Spec compliance field lists/weights now live in core/spec_compliance.py —
 # the single source of truth shared with Skill Manager. Don't reintroduce
@@ -157,27 +154,6 @@ def _age_str(dt: datetime | None) -> str:
     return f"{s // 86400}d ago"
 
 
-def _parse_raw_json(raw: str | None) -> dict | None:
-    if not raw:
-        return None
-    try:
-        result = json.loads(raw.strip())
-        if isinstance(result, dict):
-            return result
-    except json.JSONDecodeError:
-        pass
-    decoder = json.JSONDecoder()
-    for i, ch in enumerate(raw):
-        if ch == "{":
-            try:
-                obj, _ = decoder.raw_decode(raw, i)
-                if isinstance(obj, dict):
-                    return obj
-            except json.JSONDecodeError:
-                continue
-    return None
-
-
 def _sha256_file(path: Path) -> str:
     h = hashlib.sha256()
     try:
@@ -187,19 +163,6 @@ def _sha256_file(path: Path) -> str:
         return h.hexdigest()
     except OSError:
         return ""
-
-
-def _log_activity(action: str, detail: str = "") -> None:
-    try:
-        _LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-        line = f"[{ts}]  {action}"
-        if detail:
-            line += f"  —  {detail}"
-        with open(_LOG_PATH, "a", encoding="utf-8") as fh:
-            fh.write(line + "\n")
-    except Exception:
-        pass
 
 
 # ── Sparkline ─────────────────────────────────────────────────────────────────
