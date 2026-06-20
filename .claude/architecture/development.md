@@ -399,7 +399,7 @@ Items requiring research before implementation — read the referenced specs/doc
 
 Built as `views/skill_manager_view.py` (not `skill_creator_view.py` — file renamed alongside the view). Actual layout is a left/right two-panel split rather than the originally-planned top/bottom split: left = Metadata card (Name, Description with Optimize Description, License via shared `LicensePicker`, Compatibility, Allowed Tools, Additional Metadata key/value editor) + Structure card (scripts/references/assets file boxes with live Script Lint); right = SKILL.md body editor + AI Review card (diff/revert/save-review) + Specification Compliance card (live score, reuses `core/spec_compliance.py` — the same engine as Skill Detail's Compliance tab, not a separate `agentskills_spec.py` validator). AI Review returns structured XML tags (`<ISSUES>`/`<CHANGES_MADE>`/`<REVISED_DESCRIPTION>`/`<REVISED_BODY>`), not the originally-planned JSON findings array.
 
-See [todo.md](todo.md) → "Phase 5 — Skill Manager" for the live, item-level checklist (kept there since it changes faster than this file) — Builder UI v1, Options → Default Info, and the foundational `spec_compliance.py` extraction are all done; **Own-skill audit** (batch-scanning `~/.claude/skills/`) has not been started.
+See [todo.md](todo.md) → "Phase 5 — Skill Manager" for the live, item-level checklist (kept there since it changes faster than this file) — Builder UI v1, Options → Default Info, the foundational `spec_compliance.py` extraction, and **Own-skill audit** (batch-scanning `~/.claude/skills/`, built 2026-06-20) are all done. Remaining open items: the Remediate action and Anthropic-best-practices checks beyond raw spec compliance.
 
 ---
 

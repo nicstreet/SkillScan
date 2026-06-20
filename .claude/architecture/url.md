@@ -1,7 +1,21 @@
 # SkillScan — Reference URLs
 
 > Links that have informed design decisions, roadmap items, or research tasks.  
-> Last updated: 2026-06-13
+> Last updated: 2026-06-20
+
+---
+
+## Claude Code skill-listing character budget
+
+Informs `core/skill_budget.py` (description-length risk check, Own-skill audit). Community-reverse-engineered, not official Anthropic documentation — already changed once (per-skill display cap raised from 250 to 1536 characters between Claude Code 2.1.86 and 2.1.105), expect it to change again. See todo.md for the planned routine to re-check these numbers periodically.
+
+| URL | Purpose |
+|---|---|
+| https://github.com/anthropics/claude-code/issues/13099 | "Document the available_skills character budget limit" — confirms the shared, undocumented total budget (~1% of context window, ~8,000 char fallback) |
+| https://gist.github.com/alexey-pelykh/faa3c304f731d6a962efc5fa2a43abe1 | Community research on the skill budget mechanics — per-skill overhead estimate (~109 chars), shared-budget math |
+| https://claudefa.st/blog/guide/mechanics/skill-listing-budget | "Claude Code's Hidden Skill Budget Setting" — `skillListingBudgetFraction` / `SLASH_COMMAND_TOOL_CHAR_BUDGET` override settings |
+| https://github.com/backnotprop/plannotator/issues/412 | "Skill description exceeds new 250-character limit in Claude Code 2.1.86" — confirms the legacy per-skill display cap and its introduction version |
+| https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview | Official Agent Skills docs — confirms the formal agentskills.io 1024-char spec max (distinct from the runtime budget above) |
 
 ---
 
