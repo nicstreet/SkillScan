@@ -82,6 +82,16 @@ class HandoffSummaryView(QWidget):
         )
         root.addWidget(self._status_lbl)
 
+        launch_hint = QLabel(
+            "First time opening this folder, Claude Code will ask you to confirm "
+            "you trust it — that's expected, not an error."
+        )
+        launch_hint.setStyleSheet(
+            f"color:{SYS_TXT_MUTED};font-size:11px;background:transparent;"
+        )
+        launch_hint.setWordWrap(True)
+        root.addWidget(launch_hint)
+
         btn_row = QHBoxLayout()
         btn_row.addStretch()
         self._launch_btn = QPushButton("Launch Claude Code")
@@ -123,6 +133,13 @@ class HandoffSummaryView(QWidget):
                 f"color:{SYS_BADGE_SAFE};font-size:11px;background:transparent;"
             )
         except LaunchError as exc:
+            msg_critical(self, "Launch Failed", str(exc))
+        except OSError as exc:
+            # subprocess.Popen can raise other OSErrors beyond "claude not on
+            # PATH" (e.g. the target directory no longer exists) - these were
+            # previously uncaught here, failing completely silently with no
+            # visible error, since SkillScan typically runs detached with no
+            # console attached to show the traceback.
             msg_critical(self, "Launch Failed", str(exc))
 
     def _set_placeholder(self, text: str) -> None:
