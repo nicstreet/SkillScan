@@ -1,0 +1,66 @@
+[
+  {
+    "prompt": "Combine these three PDF files into one and extract all the text from page 2.",
+    "expected_skill": "pdf-builder"
+  },
+  {
+    "prompt": "Write a Word document with a tracked-changes review of this contract clause.",
+    "expected_skill": "docx-writer"
+  },
+  {
+    "prompt": "Make a 10-slide PowerPoint deck summarising our Q3 sales results.",
+    "expected_skill": "pptx-builder"
+  },
+  {
+    "prompt": "Build a spreadsheet that calculates monthly compound interest with a chart.",
+    "expected_skill": "xlsx-helper"
+  },
+  {
+    "prompt": "Scaffold a new MCP server that exposes a weather lookup tool.",
+    "expected_skill": "mcp-builder"
+  },
+  {
+    "prompt": "Build a small interactive HTML demo visualising a sorting algorithm.",
+    "expected_skill": "web-artifacts-builder"
+  },
+  {
+    "prompt": "Generate some generative art using Perlin noise flow fields in code.",
+    "expected_skill": "algorithmic-art"
+  },
+  {
+    "prompt": "Draft an internal memo announcing the new parental leave policy.",
+    "expected_skill": "internal-comms"
+  },
+  {
+    "prompt": "Create a short animated GIF celebrating our product launch for Slack.",
+    "expected_skill": "slack-gif-creator"
+  },
+  {
+    "prompt": "Make sure this landing page copy matches our brand voice and colour palette.",
+    "expected_skill": "brand-guidelines"
+  },
+  {
+    "prompt": "Review this component layout for spacing consistency and responsive behaviour.",
+    "expected_skill": "frontend-design"
+  },
+  {
+    "prompt": "Help me design a frameless rounded-corner PyQt6 window with drag-to-move.",
+    "expected_skill": "pyqt6-frameless-window"
+  },
+  {
+    "prompt": "How do I build a hover-triggered dropdown menu in PyQt6 that auto-closes when the cursor leaves?",
+    "expected_skill": "pyqt6-menus"
+  },
+  {
+    "prompt": "Scaffold a brand-new Claude skill folder with SKILL.md frontmatter and validation.",
+    "expected_skill": "skill-creator"
+  },
+  {
+    "prompt": "Write Playwright end-to-end tests for our web app's login flow.",
+    "expected_skill": "webapp-testing"
+  },
+  {
+    "prompt": "Redact all social security numbers from this PDF before sharing it externally.",
+    "expected_skill": "pdf-helper"
+  }
+]

@@ -1,7 +1,0 @@
-{
-  "skill_name": "environment-setup",
-  "expected_safe": true,
-  "expected_severity": "CLEAN",
-  "expected_findings": [],
-  "notes": "Developer environment configuration skill. All shell commands are standard Python/pip/git toolchain operations. No credential exfiltration — API key guidance explicitly directs keys into environment variables and away from source control. No obfuscation, no network calls beyond pip install and documented API endpoints. The .gitignore and secret-scanning guidance actively helps users avoid credential exposure."
-}

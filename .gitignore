@@ -1,31 +1,90 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
 # Python
-.venv/
 __pycache__/
 *.py[cod]
 *$py.class
-*.egg-info/
-dist/
-build/
-.eggs/
-*.pyd
 *.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Secrets & local config — never commit these
-.env
-.env.*
-*.key
-secrets/
-
-# SkillScan runtime — generated files, not source
-*.cdx.json
-reports/
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
 
 # IDE
-.vscode/settings.json
+.vscode/
 .idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs (critical: never commit)
+logs/
+*.log
+*.log.*
+
+# Cache & temp
+.cache/
+*.cache
+temp/
+tmp/
+*.tmp
 
 # OS
+.DS_Store
 Thumbs.db
-desktop.ini
-*.lnk
-$RECYCLE.BIN/
+
+# Test outputs
+.pytest_cache/
+.coverage
+htmlcov/
+test-results/
+
+# Credentials & Config (even if accidentally added)
+*.key
+*.pem
+*.p12
+*.pfx
+credentials.json
+secrets.json
+config-prod.json
+
+# Scan results (keep local, don't commit)
+scan-results/
+*.scan
+cache/
+
+# Claude Code — personal overrides (never commit)
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Non-standard AI context files (stale v1, not used by tooling)
+.ai/
+

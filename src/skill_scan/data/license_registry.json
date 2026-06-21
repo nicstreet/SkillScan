@@ -1,0 +1,263 @@
+[
+  {
+    "id": "none",
+    "name": "No License (All Rights Reserved)",
+    "spdx": "",
+    "category": "None",
+    "description": "No permissions granted; default copyright applies.",
+    "discloses_source": "No",
+    "url": "https://choosealicense.com/no-permission/"
+  },
+  {
+    "id": "mit",
+    "name": "MIT License",
+    "spdx": "MIT",
+    "category": "Permissive",
+    "description": "Maximum freedom, short and highly popular.",
+    "discloses_source": "No",
+    "url": "https://opensource.org/license/mit/"
+  },
+  {
+    "id": "mit-0",
+    "name": "MIT No Attribution",
+    "spdx": "MIT-0",
+    "category": "Permissive",
+    "description": "MIT with the attribution requirement removed entirely.",
+    "discloses_source": "No",
+    "url": "https://spdx.org/licenses/MIT-0.html"
+  },
+  {
+    "id": "apache-2.0",
+    "name": "Apache License 2.0",
+    "spdx": "Apache-2.0",
+    "category": "Permissive (MIT Alt)",
+    "description": "Grants explicit patent rights to users.",
+    "discloses_source": "No",
+    "url": "https://www.apache.org/licenses/LICENSE-2.0"
+  },
+  {
+    "id": "bsd-3-clause",
+    "name": "BSD 3-Clause License",
+    "spdx": "BSD-3-Clause",
+    "category": "Permissive (MIT Alt)",
+    "description": "Prevents users from using your name for marketing.",
+    "discloses_source": "No",
+    "url": "https://opensource.org/license/bsd-3-clause/"
+  },
+  {
+    "id": "bsd-2-clause",
+    "name": "BSD 2-Clause License",
+    "spdx": "BSD-2-Clause",
+    "category": "Permissive (MIT Alt)",
+    "description": "Simpler language; drops \"sublicense\" wording.",
+    "discloses_source": "No",
+    "url": "https://opensource.org/license/bsd-2-clause/"
+  },
+  {
+    "id": "0bsd",
+    "name": "BSD Zero Clause License",
+    "spdx": "0BSD",
+    "category": "Permissive (MIT Alt)",
+    "description": "Even more permissive than MIT - no attribution notice required at all.",
+    "discloses_source": "No",
+    "url": "https://spdx.org/licenses/0BSD.html"
+  },
+  {
+    "id": "isc",
+    "name": "ISC License",
+    "spdx": "ISC",
+    "category": "Permissive (MIT Alt)",
+    "description": "Ultra-concise version of MIT; removes redundant text.",
+    "discloses_source": "No",
+    "url": "https://opensource.org/license/isc-license-txt/"
+  },
+  {
+    "id": "boost",
+    "name": "Boost Software License 1.0",
+    "spdx": "BSL-1.0",
+    "category": "Permissive (MIT Alt)",
+    "description": "No attribution required for compiled binaries.",
+    "discloses_source": "No",
+    "url": "https://www.boost.org/LICENSE_1_0.txt"
+  },
+  {
+    "id": "zlib",
+    "name": "zlib License",
+    "spdx": "Zlib",
+    "category": "Permissive (MIT Alt)",
+    "description": "Written for the zlib compression library; doesn't require bundling the license text in binaries.",
+    "discloses_source": "No",
+    "url": "https://spdx.org/licenses/Zlib.html"
+  },
+  {
+    "id": "ms-pl",
+    "name": "Microsoft Public License",
+    "spdx": "MS-PL",
+    "category": "Permissive (MIT Alt)",
+    "description": "Microsoft's permissive license; allows reuse including in proprietary software.",
+    "discloses_source": "No",
+    "url": "https://spdx.org/licenses/MS-PL.html"
+  },
+  {
+    "id": "ncsa",
+    "name": "University of Illinois/NCSA Open Source License",
+    "spdx": "NCSA",
+    "category": "Permissive (MIT Alt)",
+    "description": "Combines MIT and BSD wording; used by LLVM and other research-origin projects.",
+    "discloses_source": "No",
+    "url": "https://spdx.org/licenses/NCSA.html"
+  },
+  {
+    "id": "postgresql",
+    "name": "PostgreSQL License",
+    "spdx": "PostgreSQL",
+    "category": "Permissive (MIT Alt)",
+    "description": "MIT/BSD-style wording used by the PostgreSQL project.",
+    "discloses_source": "No",
+    "url": "https://spdx.org/licenses/PostgreSQL.html"
+  },
+  {
+    "id": "artistic-2.0",
+    "name": "Artistic License 2.0",
+    "spdx": "Artistic-2.0",
+    "category": "Permissive (MIT Alt)",
+    "description": "Permissive license from the Perl ecosystem; allows modification with naming-clarity conditions.",
+    "discloses_source": "No",
+    "url": "https://spdx.org/licenses/Artistic-2.0.html"
+  },
+  {
+    "id": "mpl-2.0",
+    "name": "Mozilla Public License 2.0",
+    "spdx": "MPL-2.0",
+    "category": "Weak Copyleft",
+    "description": "File-level copyleft - only files you modify must be shared.",
+    "discloses_source": "Partial",
+    "url": "https://www.mozilla.org/en-US/MPL/2.0/"
+  },
+  {
+    "id": "epl-2.0",
+    "name": "Eclipse Public License 2.0",
+    "spdx": "EPL-2.0",
+    "category": "Weak Copyleft",
+    "description": "Eclipse's file-level copyleft, similar intent to MPL.",
+    "discloses_source": "Partial",
+    "url": "https://www.eclipse.org/legal/epl-2.0/"
+  },
+  {
+    "id": "epl-1.0",
+    "name": "Eclipse Public License 1.0",
+    "spdx": "EPL-1.0",
+    "category": "Weak Copyleft",
+    "description": "Predecessor to EPL-2.0 - same file-level copyleft, weaker patent language.",
+    "discloses_source": "Partial",
+    "url": "https://www.eclipse.org/legal/epl-v10.html"
+  },
+  {
+    "id": "eupl-1.2",
+    "name": "European Union Public License 1.2",
+    "spdx": "EUPL-1.2",
+    "category": "Weak Copyleft",
+    "description": "EU-drafted copyleft license, legally valid in all EU languages; common for public-sector and government-funded software.",
+    "discloses_source": "Partial",
+    "url": "https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12"
+  },
+  {
+    "id": "lgpl-3.0",
+    "name": "GNU Lesser General Public License v3.0",
+    "spdx": "LGPL-3.0",
+    "category": "Weak Copyleft",
+    "description": "Designed for libraries; linkable by closed source.",
+    "discloses_source": "Only if library is modified",
+    "url": "https://www.gnu.org/licenses/lgpl-3.0.html"
+  },
+  {
+    "id": "lgpl-2.1",
+    "name": "GNU Lesser General Public License v2.1",
+    "spdx": "LGPL-2.1",
+    "category": "Weak Copyleft",
+    "description": "Older LGPL version - same library-linking exception as LGPL-3.0, different patent/compatibility terms.",
+    "discloses_source": "Only if library is modified",
+    "url": "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html"
+  },
+  {
+    "id": "gpl-3.0",
+    "name": "GNU General Public License v3.0",
+    "spdx": "GPL-3.0",
+    "category": "Strong Copyleft",
+    "description": "Modifications must be shared under the same license.",
+    "discloses_source": "Yes, if distributed",
+    "url": "https://www.gnu.org/licenses/gpl-3.0.html"
+  },
+  {
+    "id": "gpl-2.0",
+    "name": "GNU General Public License v2.0",
+    "spdx": "GPL-2.0",
+    "category": "Strong Copyleft",
+    "description": "Earlier version of GPL-3.0, with stricter patent/compatibility terms.",
+    "discloses_source": "Yes, if distributed",
+    "url": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html"
+  },
+  {
+    "id": "agpl-3.0",
+    "name": "GNU Affero General Public License v3.0",
+    "spdx": "AGPL-3.0",
+    "category": "Network Copyleft",
+    "description": "Closes the SaaS loophole; covers web applications.",
+    "discloses_source": "Yes, even if hosted online",
+    "url": "https://www.gnu.org/licenses/agpl-3.0.html"
+  },
+  {
+    "id": "unlicense",
+    "name": "The Unlicense",
+    "spdx": "Unlicense",
+    "category": "Public Domain (MIT Alt)",
+    "description": "Removes copyright entirely; requires no attribution.",
+    "discloses_source": "No",
+    "url": "https://unlicense.org/"
+  },
+  {
+    "id": "cc0-1.0",
+    "name": "Creative Commons Zero v1.0",
+    "spdx": "CC0-1.0",
+    "category": "Public Domain",
+    "description": "Public domain dedication; no attribution required.",
+    "discloses_source": "No",
+    "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  {
+    "id": "cc-by-4.0",
+    "name": "Creative Commons Attribution 4.0",
+    "spdx": "CC-BY-4.0",
+    "category": "Permissive (content)",
+    "description": "Free reuse for any purpose with attribution. Built for content, not code.",
+    "discloses_source": "No",
+    "url": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  {
+    "id": "ofl-1.1",
+    "name": "SIL Open Font License 1.1",
+    "spdx": "OFL-1.1",
+    "category": "Permissive (content)",
+    "description": "Written specifically for fonts - bundle and embed freely, but can't sell the font by itself. Relevant if a skill's assets/ includes one.",
+    "discloses_source": "No",
+    "url": "https://openfontlicense.org/"
+  },
+  {
+    "id": "cc-by-sa-4.0",
+    "name": "Creative Commons Attribution Share Alike 4.0",
+    "spdx": "CC-BY-SA-4.0",
+    "category": "Copyleft (content)",
+    "description": "Like CC-BY, but adaptations must be shared under the same license - copyleft for content rather than code.",
+    "discloses_source": "Yes, if shared",
+    "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  {
+    "id": "gfdl-1.3",
+    "name": "GNU Free Documentation License v1.3",
+    "spdx": "GFDL-1.3",
+    "category": "Copyleft (content)",
+    "description": "Copyleft for documentation and manuals - copies and modifications must carry the same license.",
+    "discloses_source": "Yes, if shared",
+    "url": "https://www.gnu.org/licenses/fdl-1.3.html"
+  }
+]

@@ -1,7 +1,0 @@
-{
-  "skill_name": "color-palette-builder",
-  "expected_safe": true,
-  "expected_severity": "CLEAN",
-  "expected_findings": [],
-  "notes": "Colour theory and design system skill. Only uses Python for mathematical colour calculations and file output. No network access, no credential handling, no system calls, no obfuscation. All code examples are self-contained colour maths."
-}
