@@ -106,6 +106,8 @@ The encouraging finding from drafting this: the *hard* part (vetting) is already
 
 **Update 2026-06-20 (same day, third pass): the v1 loop is now fully runnable end-to-end.** `ui/views/project_setup_view.py` + `core/project_build_worker.py` close the last gap - a real rough idea typed into the real entry screen produced a real scaffolded project and auto-transitioned to the real Handoff Summary, all through the actual GUI widget, not just the underlying functions. Still not wired into `main_window.py`'s nav - that's the next decision, not a code gap. See todo.md for the full result.
 
+**Update 2026-06-20 (same day, fourth pass): wired into the nav.** `ProjectSetupView` is now a real, reachable nav item in the actual app (floating nav panel + burger menu), not just a standalone test target. The chain is fully usable end-to-end from a cold app launch now. Remaining work is exactly what's been deferred throughout this whole doc - Gap Detection, the background Supply Chain, the Cowork launch option - nothing new surfaced by this step.
+
 ## Open questions this diagram surfaces, not yet answered
 
 - ~~Where does the Intent Parser's "local shortlist" matching actually run~~ — **answered 2026-06-20**: a second LLM call reusing the skill-selection benchmark's exact name+description matching mechanism, not a separate simpler match. See todo.md for what testing it for real surfaced.
