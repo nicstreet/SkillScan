@@ -138,6 +138,25 @@ def slugify_project_name(project_type: str) -> str:
     return slug or "new-project"
 
 
+def resolve_target_dir(parent_dir: Path, project_type: str) -> Path:
+    """Derive a non-colliding target directory from project_type, trying
+    slug, slug-2, slug-3, ... rather than failing outright - found necessary
+    2026-06-20 when two similarly-vague prompts ("stock price tracker",
+    "invoice tracker") both got inferred as generic project types that
+    slugified to the same folder name. The user never typed this name
+    themselves (it's auto-derived from an LLM guess), so a clash shouldn't
+    need their intervention to resolve - same instinct as how Windows/macOS
+    handle "this name already exists" when creating a new folder.
+    """
+    slug = slugify_project_name(project_type)
+    candidate = parent_dir / slug
+    n = 2
+    while _looks_like_existing_project(candidate):
+        candidate = parent_dir / f"{slug}-{n}"
+        n += 1
+    return candidate
+
+
 @dataclass
 class ScaffoldResult:
     target_dir: Path

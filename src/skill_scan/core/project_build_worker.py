@@ -15,7 +15,7 @@ from pathlib import Path
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from .intent_parser import IntentResult, match_local_skills, parse_intent
-from .project_scaffolder import scaffold_project, slugify_project_name
+from .project_scaffolder import resolve_target_dir, scaffold_project
 from .skill_audit import DEFAULT_AUDIT_ROOT, audit_roots
 
 
@@ -40,7 +40,7 @@ class ProjectBuildWorker(QThread):
             matched_paths = self._match_local_skills(intent)
 
             self.progress.emit("Building your project…")
-            target_dir = self._parent_dir / slugify_project_name(intent.project_type)
+            target_dir = resolve_target_dir(self._parent_dir, intent.project_type)
             result = scaffold_project(target_dir, intent, matched_paths)
 
             self.finished.emit(intent, result)

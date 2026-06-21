@@ -10,6 +10,7 @@ import pytest
 from skill_scan.core.intent_parser import IntentResult, ProcessStage
 from skill_scan.core.project_scaffolder import (
     ScaffoldError,
+    resolve_target_dir,
     scaffold_project,
     slugify_project_name,
 )
@@ -29,6 +30,44 @@ def test_slugify_project_name_strips_punctuation():
 def test_slugify_project_name_falls_back_when_empty():
     assert slugify_project_name("") == "new-project"
     assert slugify_project_name("!!!") == "new-project"
+
+
+def test_resolve_target_dir_returns_plain_slug_when_no_collision(tmp_path):
+    result = resolve_target_dir(tmp_path, "Photo Collection Organizer")
+    assert result == tmp_path / "photo-collection-organizer"
+
+
+def _mark_as_existing_project(target_dir):
+    target_dir.mkdir(parents=True)
+    (target_dir / "CLAUDE.md").write_text("already here", encoding="utf-8")
+
+
+def test_resolve_target_dir_auto_suffixes_on_collision(tmp_path):
+    """Regression: two similarly-vague prompts ("stock price tracker",
+    "invoice tracker") both got inferred as the same generic project type,
+    colliding on the same slug and hard-failing the build. The user never
+    typed this name themselves, so the clash shouldn't need their
+    intervention to resolve."""
+    _mark_as_existing_project(tmp_path / "photo-collection-organizer")
+    result = resolve_target_dir(tmp_path, "Photo Collection Organizer")
+    assert result == tmp_path / "photo-collection-organizer-2"
+
+
+def test_resolve_target_dir_keeps_incrementing_past_multiple_collisions(tmp_path):
+    for name in (
+        "photo-collection-organizer",
+        "photo-collection-organizer-2",
+        "photo-collection-organizer-3",
+    ):
+        _mark_as_existing_project(tmp_path / name)
+    result = resolve_target_dir(tmp_path, "Photo Collection Organizer")
+    assert result == tmp_path / "photo-collection-organizer-4"
+
+
+def test_resolve_target_dir_reuses_empty_directory_with_matching_name(tmp_path):
+    (tmp_path / "photo-collection-organizer").mkdir()
+    result = resolve_target_dir(tmp_path, "Photo Collection Organizer")
+    assert result == tmp_path / "photo-collection-organizer"
 
 
 _PYQT6_INTENT = IntentResult(
