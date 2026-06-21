@@ -53,6 +53,7 @@ from ._icons import (
     ICON_AI_USAGE,
     ICON_BULLHORN,
     ICON_SHIELD_HALVED,
+    ICON_OPTIMIZE,
 )
 from ._palette import (
     SYS_ACTION_PRIMARY,
@@ -88,6 +89,7 @@ _VIEW_NAMES = [
     "Skill Audit",
     "Options",
     "About",
+    "Project Setup",
 ]
 
 
@@ -390,6 +392,7 @@ class _TaskBar(QWidget):
         (9, "Skill Audit"),
         (10, "Options"),
         (11, "About"),
+        (12, "Project Setup"),
     ]
 
     def _show_nav_menu(self) -> None:
@@ -676,6 +679,7 @@ class _NavPanel(QWidget):
     _BOTTOM: list[tuple[str, str]] = [
         (ICON_OPTIONS, "Options"),
         (ICON_ABOUT, "About"),
+        (ICON_OPTIMIZE, "Project Setup"),
     ]
 
     def __init__(self, parent: QWidget):
@@ -935,6 +939,7 @@ class MainWindow(QWidget):
         from .views.options_view import OptionsView
         from .views.about_view import AboutView
         from .views.skill_detail_view import SkillDetailView
+        from .views.project_setup_view import ProjectSetupView
 
         views = [
             DashboardView(),  # 0
@@ -949,7 +954,8 @@ class MainWindow(QWidget):
             SkillAuditView(),  # 9
             OptionsView(),  # 10
             AboutView(),  # 11
-            SkillDetailView(),  # 12
+            ProjectSetupView(),  # 12
+            SkillDetailView(),  # 13
         ]
         for view in views:
             self._stack.addWidget(view)
@@ -1091,10 +1097,10 @@ class MainWindow(QWidget):
             )
 
     def _on_skill_detail_requested(self, skill_id: int) -> None:
-        detail_view = self._stack.widget(12)
+        detail_view = self._stack.widget(13)
         if detail_view is not None:
             detail_view.load(skill_id)
-            self.navigate_to(12)
+            self.navigate_to(13)
 
     def _show_options_window(self) -> None:
         from .options_window import OptionsWindow
